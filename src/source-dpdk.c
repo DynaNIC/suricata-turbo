@@ -212,7 +212,7 @@ static int DevicePostStartPMDSpecificActions(
     else if (strcmp(driver_name, "mlx5_pci") == 0)
         mlx5DeviceSetRSS(ptv->port_id, ptv->threads, ptv->livedev->dev);
 
-    if ((strcmp(driver_name, "mlx5_pci") == 0 || strcmp(driver_name, "net_ice") == 0 ||
+    if ((strcmp(driver_name, "net_nfb") == 0 || strcmp(driver_name, "mlx5_pci") == 0 || strcmp(driver_name, "net_ice") == 0 ||
                 strcmp(driver_name, "net_i40e") == 0)) {
         int retval = RteFlowRulesCreate(
                 dpdk_config->iface, dpdk_config->port_id, &dpdk_config->drop_filter, driver_name);
@@ -238,7 +238,7 @@ static void DevicePreClosePMDSpecificActions(DPDKThreadVars *ptv, const char *dr
             strcmp(driver_name, "net_i40e") == 0 ||
 #endif /* RTE_VERSION > RTE_VERSION_NUM(20, 0, 0, 0) */
             strcmp(driver_name, "net_ixgbe") == 0 || strcmp(driver_name, "net_ice") == 0 ||
-            strcmp(driver_name, "mlx5_pci") == 0) {
+            strcmp(driver_name, "mlx5_pci") == 0 || strcmp(driver_name, "net_nfb") == 0) {
         // Flush the RSS rules that have been inserted in the post start section
         struct rte_flow_error flush_error = { 0 };
         int32_t retval = rte_flow_flush(ptv->port_id, &flush_error);

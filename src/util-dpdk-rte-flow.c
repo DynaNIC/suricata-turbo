@@ -148,7 +148,7 @@ static bool RteFlowDropFilterInit(uint32_t rule_count, char **patterns, struct r
 #endif /* RTE_VERSION >= RTE_VERSION_NUM(23, 11, 0, 0) */
     }
 
-    if (strcmp(driver_name, "net_ice") == 0 || strcmp(driver_name, "mlx5_pci") == 0) {
+    if (strcmp(driver_name, "net_ice") == 0 || strcmp(driver_name, "mlx5_pci") == 0 || strcmp(driver_name, "net_nfb") == 0) {
 
         action[0].type = RTE_FLOW_ACTION_TYPE_COUNT;
         action[0].conf = counter_id;
