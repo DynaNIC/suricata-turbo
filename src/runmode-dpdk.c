@@ -1371,7 +1371,7 @@ static void PortConfSetInterruptMode(const DPDKIfaceConfig *iconf, struct rte_et
 static void PortConfSetRSSConf(const DPDKIfaceConfig *iconf,
         const struct rte_eth_dev_info *dev_info, struct rte_eth_conf *port_conf)
 {
-    if (dev_info->rx_offload_capa & RTE_ETH_RX_OFFLOAD_RSS_HASH) {
+    //if (dev_info->rx_offload_capa & RTE_ETH_RX_OFFLOAD_RSS_HASH) {
         if (iconf->nb_rx_queues > 1) {
             SCLogConfig("%s: RSS enabled for %d queues", iconf->iface, iconf->nb_rx_queues);
             port_conf->rx_adv_conf.rss_conf = (struct rte_eth_rss_conf){
@@ -1403,9 +1403,9 @@ static void PortConfSetRSSConf(const DPDKIfaceConfig *iconf,
             port_conf->rx_adv_conf.rss_conf.rss_key = NULL;
             port_conf->rx_adv_conf.rss_conf.rss_hf = 0;
         }
-    } else {
-        SCLogConfig("%s: RSS not supported", iconf->iface);
-    }
+    //} else {
+    //    SCLogConfig("%s: RSS not supported", iconf->iface);
+    //}
 }
 
 static void PortConfSetChsumOffload(const DPDKIfaceConfig *iconf,
