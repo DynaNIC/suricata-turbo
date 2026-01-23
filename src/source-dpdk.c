@@ -139,6 +139,7 @@ typedef struct DPDKThreadVars_ {
     uint64_t bytes;
     uint64_t accepted;
     uint64_t dropped;
+    uint64_t bypassed;
     uint16_t port_id;
     uint16_t queue_id;
     int32_t port_socket_id;
@@ -313,19 +314,22 @@ static inline void DPDKDumpCounters(DPDKThreadVars *ptv)
             return;
         }
 
+        uint64_t filtered_packets = 0;
         if (!ptv->port_stopped) {
-            uint64_t filtered_packets = 0;
             retval = RteFlowFilteredPacketsQuery(ptv->livedev->dpdk_vars->rte_flow_rule_handlers,
                     ptv->livedev->dpdk_vars->rte_flow_rule_cnt, ptv->livedev->dev, ptv->port_id,
                     &filtered_packets);
-            if (retval == 0)
-                StatsSetUI64(ptv->tv, ptv->capture_dpdk_rte_flow_filtered, filtered_packets);
+            if (retval == 0) {
+                StatsAddUI64(ptv->tv, ptv->capture_dpdk_rte_flow_filtered, filtered_packets);
+                SC_ATOMIC_ADD(ptv->livedev->bypassed, filtered_packets);
+                ptv->bypassed += filtered_packets;
+            }
         }
 
         StatsSetUI64(ptv->tv, ptv->capture_dpdk_packets,
-                ptv->pkts + eth_stats.imissed + eth_stats.ierrors + eth_stats.rx_nombuf);
+                ptv->pkts + eth_stats.imissed + eth_stats.ierrors + eth_stats.rx_nombuf + ptv->bypassed);
         SC_ATOMIC_SET(ptv->livedev->pkts,
-                eth_stats.ipackets + eth_stats.imissed + eth_stats.ierrors + eth_stats.rx_nombuf);
+                eth_stats.ipackets + eth_stats.imissed + eth_stats.ierrors + eth_stats.rx_nombuf + ptv->bypassed);
         StatsSetUI64(ptv->tv, ptv->capture_dpdk_rx_errs,
                 eth_stats.imissed + eth_stats.ierrors + eth_stats.rx_nombuf);
         StatsSetUI64(ptv->tv, ptv->capture_dpdk_imissed, eth_stats.imissed);

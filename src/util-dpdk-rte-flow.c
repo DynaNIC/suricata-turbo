@@ -300,7 +300,7 @@ uint64_t RteFlowFilteredPacketsQuery(struct rte_flow **rules, uint16_t rule_coun
     uint32_t counter_id = COUNT_ACTION_ID;
     int retval = 0;
 
-    query_count.reset = 0;
+    query_count.reset = 1;
     action[0].type = RTE_FLOW_ACTION_TYPE_COUNT;
     action[0].conf = &counter_id;
     action[1].type = RTE_FLOW_ACTION_TYPE_END;
@@ -313,7 +313,9 @@ uint64_t RteFlowFilteredPacketsQuery(struct rte_flow **rules, uint16_t rule_coun
                     rte_strerror(-retval), flow_error.message);
             SCReturnInt(retval);
         };
-        *filtered_packets += query_count.hits;
+        if (query_count.hits_set) {
+            *filtered_packets += query_count.hits;
+        }
     }
 #endif /* RTE_VERSION >= RTE_VERSION_NUM(21, 0, 0, 0) */
     SCReturnInt(0);
