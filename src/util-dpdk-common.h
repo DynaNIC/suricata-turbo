@@ -122,6 +122,7 @@ typedef struct RteFlowBypassData_ {
     struct rte_ring *bypass_ring;
     SC_ATOMIC_DECLARE(int32_t, rte_bypass_rules_active);
     SC_ATOMIC_DECLARE(int32_t, rte_bypass_rules_created);
+    uint32_t bypass_group;
 } RteFlowBypassData;
 
 typedef struct {

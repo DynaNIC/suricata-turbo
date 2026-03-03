@@ -63,7 +63,7 @@ static char *DriverSpecificErrorMessage(const char *, struct rte_flow_item *);
 static bool RteFlowRulesContainPatternWildcard(char **, uint32_t);
 static bool RteFlowDropFilterInit(uint32_t, char **, struct rte_flow_attr *,
         struct rte_flow_action *, uint32_t *, const char *, const char *);
-static int RteFlowBypassRuleCreate(struct rte_flow_item *, int, struct rte_flow **);
+static int RteFlowBypassRuleCreate(struct rte_flow_item *, int, struct rte_flow **, uint32_t);
 static int RteFlowUpdateStats(FlowBypassInfo *, uint16_t, struct rte_flow *, struct rte_flow *);
 static int RteFlowSetFlowBypassInfo(Flow *, struct rte_flow *, struct rte_flow *, int);
 
@@ -126,6 +126,8 @@ static bool RteFlowDropFilterInit(uint32_t rule_count, char **patterns, struct r
 {
     attr->ingress = 1;
     attr->priority = 0;
+
+    /* NFB and MLX5: drop-filter rules stay in group 0, dynamic bypass goes to group 1 */
 
     /* ICE PMD does not support count action with wildcard pattern (mask and last pattern item
      * types). The count action is omitted when wildcard pattern is detected */
@@ -383,8 +385,10 @@ int RteFlowRulesCreate(
         struct rte_flow *flow_handler = rte_flow_create(port_id, &attr, items, action, &flow_error);
         if (flow_handler == NULL) {
             failed_rule_count++;
+	    /**
             SCLogError("%s: Error when creating rte_flow rule \"%s\": %s", port_name,
                     rule_storage->rules[i], flow_error.message);
+		    */
             continue;
         }
         rule_storage->rule_handlers[i] = flow_handler;
@@ -408,6 +412,50 @@ int RteFlowRulesCreate(
     }
 
 #endif /* RTE_VERSION >= RTE_VERSION_NUM(21, 0, 0, 0)*/
+    SCReturnInt(0);
+}
+
+/**
+ * \brief Create a catch-all JUMP rule in group 0 that forwards all packets to the specified group
+ *
+ * \param port_id identificator of a port
+ * \param port_name name of a port
+ * \param dst_group destination group to jump to
+ * \return int 0 on success, negative value on error
+ */
+int RteFlowCreateJumpRule(int port_id, const char *port_name, uint32_t dst_group)
+{
+    struct rte_flow_attr attr = { 0 };
+    struct rte_flow_action action[] = { { 0 }, { 0 } };
+    struct rte_flow_item pattern[] = { { 0 }, { 0 } };
+    struct rte_flow_error flow_error = { 0 };
+    struct rte_flow_action_jump jump = { .group = dst_group };
+
+    attr.ingress = 1;
+    attr.group = 0;
+    attr.priority = 1; /* Lower precedence than drop-filter rules (priority 0) */
+
+    pattern[0].type = RTE_FLOW_ITEM_TYPE_ETH;
+    pattern[1].type = RTE_FLOW_ITEM_TYPE_END;
+
+    action[0].type = RTE_FLOW_ACTION_TYPE_JUMP;
+    action[0].conf = &jump;
+    action[1].type = RTE_FLOW_ACTION_TYPE_END;
+
+    int retval = rte_flow_validate(port_id, &attr, pattern, action, &flow_error);
+    if (retval != 0) {
+        SCLogError("%s: rte_flow JUMP rule validation error: %s, errmsg: %s", port_name,
+                rte_strerror(-retval), flow_error.message);
+        SCReturnInt(retval);
+    }
+
+    struct rte_flow *flow = rte_flow_create(port_id, &attr, pattern, action, &flow_error);
+    if (flow == NULL) {
+        SCLogError("%s: rte_flow JUMP rule creation error: %s", port_name, flow_error.message);
+        SCReturnInt(-1);
+    }
+
+    SCLogInfo("%s: rte_flow JUMP rule created (group 0 -> group %u)", port_name, dst_group);
     SCReturnInt(0);
 }
 
@@ -530,7 +578,7 @@ static int RteFlowUpdateStats(FlowBypassInfo *fc, uint16_t port_id,
  * \return int 0 on success, negative value on error
  */
 static int RteFlowBypassRuleCreate(
-        struct rte_flow_item *items, int port_id, struct rte_flow **flow_handler)
+        struct rte_flow_item *items, int port_id, struct rte_flow **flow_handler, uint32_t group)
 {
     struct rte_flow_error flow_error = { 0 };
     struct rte_flow_attr attr = { 0 };
@@ -538,7 +586,7 @@ static int RteFlowBypassRuleCreate(
 
     attr.ingress = 1;
     attr.priority = 0;
-    attr.group = 0;
+    attr.group = group;
 
     uint32_t counter_id = COUNT_ACTION_ID;
 
@@ -549,11 +597,17 @@ static int RteFlowBypassRuleCreate(
 
     int retval = rte_flow_validate(port_id, &attr, items, action, &flow_error);
     if (retval != 0) {
+        SCLogError("rte_flow dynamic bypass: validate error (group %u): %s errmsg: %s", group,
+                rte_strerror(-retval), flow_error.message);
         SCReturnInt(retval);
     }
 
     *flow_handler = rte_flow_create(port_id, &attr, items, action, &flow_error);
     if (*flow_handler == NULL) {
+	    /*
+        SCLogError("rte_flow dynamic bypass: create error (group %u): %s", group,
+                flow_error.message);
+		*/
         SCReturnInt(-1);
     }
     SCReturnInt(0);
@@ -589,14 +643,25 @@ int RteFlowBypassRuleLoad(
     RteFlowBypassData *rte_flow_bypass_data = (RteFlowBypassData *)data;
     struct rte_ring *bypass_ring = rte_flow_bypass_data->bypass_ring;
     struct rte_mempool *bypass_mp = rte_flow_bypass_data->bypass_mp;
+    uint32_t bypass_group = rte_flow_bypass_data->bypass_group;
     struct rte_flow_item items[] = { { 0 }, { 0 }, { 0 }, { 0 }, { 0 } };
-    uint16_t L2_INDEX = 0, L3_INDEX = 1, L4_INDEX = 2, END_INDEX = 3;
-    uint16_t ring_dequeue_num = 20;
+    uint16_t L3_INDEX, L4_INDEX, END_INDEX;
+    uint16_t ring_dequeue_num = 256;
     uint32_t success_count = 0;
     FlowKey *ring_data[ring_dequeue_num];
 
-    /* Initialize the reusable part of rte_flow rules */
-    items[L2_INDEX].type = RTE_FLOW_ITEM_TYPE_ETH;
+    /* Initialize the reusable part of rte_flow rules.
+     * Some firmware (e.g. NFB) requires L3+L4 only patterns in non-zero groups. */
+    if (bypass_group != 0) {
+        L3_INDEX = 0;
+        L4_INDEX = 1;
+        END_INDEX = 2;
+    } else {
+        items[0].type = RTE_FLOW_ITEM_TYPE_ETH;
+        L3_INDEX = 1;
+        L4_INDEX = 2;
+        END_INDEX = 3;
+    }
     items[END_INDEX].type = RTE_FLOW_ITEM_TYPE_END;
 
     uint32_t to_bypass_packets =
@@ -622,6 +687,10 @@ int RteFlowBypassRuleLoad(
             ipv4_mask.hdr.src_addr = 0xFFFFFFFF;
             ipv4_spec.hdr.dst_addr = flow_key->dst.address.address_un_data32[0];
             ipv4_mask.hdr.dst_addr = 0xFFFFFFFF;
+            if (bypass_group != 0) {
+                ipv4_spec.hdr.next_proto_id = flow_key->proto;
+                ipv4_mask.hdr.next_proto_id = 0xFF;
+            }
             ip_spec = &ipv4_spec;
             ip_mask = &ipv4_mask;
             items[L3_INDEX].type = RTE_FLOW_ITEM_TYPE_IPV4;
@@ -631,6 +700,10 @@ int RteFlowBypassRuleLoad(
             memset(ipv6_mask.hdr.src_addr, 0xFF, 16);
             memcpy(ipv6_spec.hdr.dst_addr, flow_key->dst.address.address_un_data8, 16);
             memset(ipv6_mask.hdr.dst_addr, 0xFF, 16);
+            if (bypass_group != 0) {
+                ipv6_spec.hdr.proto = flow_key->proto;
+                ipv6_mask.hdr.proto = 0xFF;
+            }
             ip_spec = &ipv6_spec;
             ip_mask = &ipv6_mask;
             items[L3_INDEX].type = RTE_FLOW_ITEM_TYPE_IPV6;
@@ -660,7 +733,7 @@ int RteFlowBypassRuleLoad(
         items[L4_INDEX].mask = l4_mask;
 
         struct rte_flow *src_rule_handler = NULL;
-        int retval = RteFlowBypassRuleCreate(items, port_id, &src_rule_handler);
+        int retval = RteFlowBypassRuleCreate(items, port_id, &src_rule_handler, bypass_group);
 
         /* Create rte_flow rule for the opposite direction */
         if (flow_key->src.family == AF_INET) {
@@ -707,7 +780,7 @@ int RteFlowBypassRuleLoad(
         items[L4_INDEX].mask = l4_mask;
 
         struct rte_flow *dst_rule_handler = NULL;
-        retval += RteFlowBypassRuleCreate(items, port_id, &dst_rule_handler);
+        retval += RteFlowBypassRuleCreate(items, port_id, &dst_rule_handler, bypass_group);
 
         uint32_t flow_hash = FlowKeyGetHash(flow_key);
         Flow *flow = FlowGetExistingFlowFromHash(flow_key, flow_hash);

@@ -66,6 +66,7 @@ int ConfigLoadRteFlowRules(
         SCConfNode *if_root, const char *filter_type, RteFlowRuleStorage *rte_flow_rule_storage);
 int RteFlowRulesCreate(char *port_name, int port_id, RteFlowRuleStorage *rte_flow_rule_storage,
         const char *driver_name);
+int RteFlowCreateJumpRule(int port_id, const char *port_name, uint32_t dst_group);
 uint64_t RteFlowFilteredPacketsQuery(struct rte_flow **rte_flow_rules, uint16_t rule_count,
         char *device_name, int port_id, uint64_t *filtered_packets);
 int RteBypassInit(DPDKDeviceResources *dpdk_resources, uint32_t bypass_ring_size,

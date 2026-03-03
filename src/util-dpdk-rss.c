@@ -94,7 +94,7 @@ struct rte_flow_action_rss DPDKInitRSSAction(struct rte_eth_rss_conf rss_conf, i
  * \return int 0 on success, a negative errno value otherwise
  */
 int DPDKCreateRSSFlowGeneric(
-        int port_id, const char *port_name, struct rte_flow_action_rss rss_conf)
+        int port_id, const char *port_name, struct rte_flow_action_rss rss_conf, uint32_t group)
 {
     struct rte_flow_attr attr = { 0 };
     struct rte_flow_action action[] = { { 0 }, { 0 } };
@@ -105,6 +105,7 @@ int DPDKCreateRSSFlowGeneric(
 
     attr.ingress = 1;
     attr.priority = 1;
+    attr.group = group;
     action[0].type = RTE_FLOW_ACTION_TYPE_RSS;
     action[0].conf = &rss_conf;
     action[1].type = RTE_FLOW_ACTION_TYPE_END;
@@ -120,7 +121,7 @@ int DPDKCreateRSSFlowGeneric(
                 rte_strerror(-ret), flow_error.message);
         return ret;
     } else {
-        SCLogDebug("%s: rte_flow rule created", port_name);
+        SCLogDebug("%s: rte_flow RSS rule created (group %u)", port_name, group);
     }
 
     return 0;

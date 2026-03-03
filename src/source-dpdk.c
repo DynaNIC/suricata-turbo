@@ -210,11 +210,13 @@ static int DevicePostStartPMDSpecificActions(
         ixgbeDeviceSetRSS(ptv->port_id, ptv->threads, ptv->livedev->dev);
     else if (strcmp(driver_name, "net_ice") == 0)
         iceDeviceSetRSS(ptv->port_id, ptv->threads, ptv->livedev->dev);
-    else if (strcmp(driver_name, "mlx5_pci") == 0)
-        mlx5DeviceSetRSS(ptv->port_id, ptv->threads, ptv->livedev->dev);
+    else if (strcmp(driver_name, "mlx5_pci") == 0) {
+        /* MLX5: RSS in group 1 (must exist before JUMP directs traffic there) */
+        mlx5DeviceSetRSS(ptv->port_id, ptv->threads, ptv->livedev->dev, 1);
+    }
 
-    if ((strcmp(driver_name, "net_nfb") == 0 || strcmp(driver_name, "mlx5_pci") == 0 || strcmp(driver_name, "net_ice") == 0 ||
-                strcmp(driver_name, "net_i40e") == 0)) {
+    if ((strcmp(driver_name, "net_nfb") == 0 || strcmp(driver_name, "mlx5_pci") == 0 ||
+                strcmp(driver_name, "net_ice") == 0 || strcmp(driver_name, "net_i40e") == 0)) {
         int retval = RteFlowRulesCreate(
                 dpdk_config->iface, dpdk_config->port_id, &dpdk_config->drop_filter, driver_name);
         ptv->livedev->dpdk_vars->rte_flow_rule_handlers = dpdk_config->drop_filter.rule_handlers;
@@ -223,6 +225,18 @@ static int DevicePostStartPMDSpecificActions(
         ptv->livedev->dpdk_vars->rte_flow_rule_cnt = dpdk_config->drop_filter.rule_cnt;
         if (retval != 0) {
             SCReturnInt(retval);
+        }
+    }
+
+    if (strcmp(driver_name, "net_nfb") == 0 || strcmp(driver_name, "mlx5_pci") == 0) {
+        /* NFB/MLX5: drop-filter rules are in group 0, JUMP rule is catch-all fallback in group 0,
+         * dynamic bypass rules go to group 1 */
+        int retval = RteFlowCreateJumpRule(dpdk_config->port_id, dpdk_config->iface, 1);
+        if (retval != 0) {
+            SCReturnInt(retval);
+        }
+        if (ptv->livedev->dpdk_vars->rte_flow_bypass_data != NULL) {
+            ptv->livedev->dpdk_vars->rte_flow_bypass_data->bypass_group = 1;
         }
     }
     SCReturnInt(0);
