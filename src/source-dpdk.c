@@ -326,10 +326,11 @@ static inline void DPDKDumpCounters(DPDKThreadVars *ptv)
             }
         }
 
+        uint64_t total_bypassed = SC_ATOMIC_GET(ptv->livedev->bypassed);
         StatsSetUI64(ptv->tv, ptv->capture_dpdk_packets,
-                ptv->pkts + eth_stats.imissed + eth_stats.ierrors + eth_stats.rx_nombuf + ptv->bypassed);
+                ptv->pkts + eth_stats.imissed + eth_stats.ierrors + eth_stats.rx_nombuf + total_bypassed);
         SC_ATOMIC_SET(ptv->livedev->pkts,
-                eth_stats.ipackets + eth_stats.imissed + eth_stats.ierrors + eth_stats.rx_nombuf + ptv->bypassed);
+                eth_stats.ipackets + eth_stats.imissed + eth_stats.ierrors + eth_stats.rx_nombuf + total_bypassed);
         StatsSetUI64(ptv->tv, ptv->capture_dpdk_rx_errs,
                 eth_stats.imissed + eth_stats.ierrors + eth_stats.rx_nombuf);
         StatsSetUI64(ptv->tv, ptv->capture_dpdk_imissed, eth_stats.imissed);
