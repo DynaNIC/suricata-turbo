@@ -18,6 +18,7 @@ EXTRA_DIST = \
 	initscripts.rst \
 	install.rst \
 	install \
+	ips \
 	licenses \
 	lua \
 	make-sense-alerts.rst \
@@ -26,15 +27,13 @@ EXTRA_DIST = \
 	partials \
 	performance \
 	plugins \
+	protocols \
 	public-data-sets.rst \
 	quickstart.rst \
 	reputation \
 	rule-management \
 	rules \
 	security.rst \
-	setting-up-ipsinline-for-linux \
-	setting-up-ipsinline-for-linux.rst \
-	setting-up-ipsinline-for-windows.rst \
 	support-status.rst \
 	unix-socket.rst \
 	what-is-suricata.rst \

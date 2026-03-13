@@ -25,8 +25,36 @@
 #ifndef SURICATA_UTIL_FILE_H
 #define SURICATA_UTIL_FILE_H
 
+// only bindgen this function as struct File_ defined here in C
+// uses some structrues from rust
+uint16_t SCFileFlowFlagsToFlags(const uint16_t flow_file_flags, uint8_t direction);
+
 #include "conf.h"
 #include "util-streaming-buffer.h"
+
+typedef struct File_ File;
+
+typedef struct FileContainer_ {
+    File *head;
+    File *tail;
+} FileContainer;
+
+/**
+ *  \brief Store a chunk of file data in the flow. The open "flowfile"
+ *         will be used.
+ *
+ *  \param ffc the container
+ *  \param data data chunk
+ *  \param data_len data chunk len
+ *
+ *  \retval 0 ok
+ *  \retval -1 error
+ */
+int FileAppendData(FileContainer *, const StreamingBufferConfig *sbcfg, const uint8_t *data,
+        uint32_t data_len);
+
+#ifndef SURICATA_BINDGEN_H
+
 #include "flow.h"
 
 /* Hack: Pulling rust.h to get the SCSha256 causes all sorts of problems with
@@ -110,11 +138,6 @@ typedef struct File_ {
     uint32_t sid_max;
 } File;
 
-typedef struct FileContainer_ {
-    File *head;
-    File *tail;
-} FileContainer;
-
 FileContainer *FileContainerAlloc(void);
 void FileContainerFree(FileContainer *, const StreamingBufferConfig *cfg);
 
@@ -164,19 +187,6 @@ int FileCloseFileById(FileContainer *, const StreamingBufferConfig *sbcfg, uint3
 int FileCloseFilePtr(File *ff, const StreamingBufferConfig *sbcfg, const uint8_t *data,
         uint32_t data_len, uint16_t flags);
 
-/**
- *  \brief Store a chunk of file data in the flow. The open "flowfile"
- *         will be used.
- *
- *  \param ffc the container
- *  \param data data chunk
- *  \param data_len data chunk len
- *
- *  \retval 0 ok
- *  \retval -1 error
- */
-int FileAppendData(FileContainer *, const StreamingBufferConfig *sbcfg, const uint8_t *data,
-        uint32_t data_len);
 int FileAppendDataById(FileContainer *, const StreamingBufferConfig *sbcfg, uint32_t track_id,
         const uint8_t *data, uint32_t data_len);
 int FileAppendGAPById(FileContainer *ffc, const StreamingBufferConfig *sbcfg, uint32_t track_id,
@@ -241,7 +251,6 @@ void FileStoreFileById(FileContainer *fc, uint32_t);
 uint64_t FileDataSize(const File *file);
 uint64_t FileTrackedSize(const File *file);
 
-uint16_t FileFlowFlagsToFlags(const uint16_t flow_file_flags, uint8_t direction);
 uint16_t FileFlowToFlags(const Flow *flow, uint8_t direction);
 
 #ifdef DEBUG
@@ -251,5 +260,7 @@ void FilePrintFlags(const File *file);
 #endif
 
 void FilesPrune(FileContainer *fc, const StreamingBufferConfig *sbcfg, const bool trunc);
+
+#endif // SURICATA_BINDGEN_H
 
 #endif /* SURICATA_UTIL_FILE_H */

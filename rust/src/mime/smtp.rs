@@ -17,14 +17,12 @@
 
 use super::mime;
 use crate::core::StreamingBufferConfig;
-use crate::filecontainer::FileContainer;
 use crate::utils::base64;
-use digest::generic_array::{typenum::U16, GenericArray};
 use digest::Digest;
 use digest::Update;
 use md5::Md5;
 use std::ffi::CStr;
-use std::os::raw::c_uchar;
+use suricata_sys::sys::{FileAppendData, FileContainer, SCBasicSearchNocaseIndex};
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialOrd, PartialEq, Eq)]
@@ -92,7 +90,7 @@ pub struct MimeStateSMTP<'a> {
     sbcfg: *const StreamingBufferConfig,
     md5: md5::Md5,
     pub(crate) md5_state: MimeSmtpMd5State,
-    pub(crate) md5_result: GenericArray<u8, U16>,
+    pub(crate) md5_result: String,
 }
 
 pub fn mime_smtp_state_init(
@@ -116,7 +114,7 @@ pub fn mime_smtp_state_init(
         sbcfg,
         md5: Md5::new(),
         md5_state: MimeSmtpMd5State::MimeSmtpMd5Disabled,
-        md5_result: [0; 16].into(),
+        md5_result: String::new(),
     };
     return Some(r);
 }
@@ -258,18 +256,6 @@ fn mime_smtp_process_headers(ctx: &mut MimeStateSMTP) -> (u32, bool) {
     return (warnings, encap);
 }
 
-extern "C" {
-    // Defined in util-file.h
-    pub fn FileAppendData(
-        c: *mut FileContainer, sbcfg: *const StreamingBufferConfig, data: *const c_uchar,
-        data_len: u32,
-    ) -> std::os::raw::c_int;
-    // Defined in util-spm-bs.h
-    pub fn BasicSearchNocaseIndex(
-        data: *const c_uchar, data_len: u32, needle: *const c_uchar, needle_len: u16,
-    ) -> u32;
-}
-
 fn hex(i: u8) -> Option<u8> {
     if i.is_ascii_digit() {
         return Some(i - b'0');
@@ -297,7 +283,7 @@ fn mime_smtp_extract_urls(urls: &mut Vec<Vec<u8>>, input_start: &[u8]) {
     for s in unsafe { MIME_SMTP_CONFIG_EXTRACT_URL_SCHEMES.iter() } {
         let mut input = input_start;
         let mut start = unsafe {
-            BasicSearchNocaseIndex(
+            SCBasicSearchNocaseIndex(
                 input.as_ptr(),
                 input.len() as u32,
                 s.as_ptr(),
@@ -315,7 +301,7 @@ fn mime_smtp_extract_urls(urls: &mut Vec<Vec<u8>>, input_start: &[u8]) {
             urls.push(urlv);
             input = &input[start as usize + url.len()..];
             start = unsafe {
-                BasicSearchNocaseIndex(
+                SCBasicSearchNocaseIndex(
                     input.as_ptr(),
                     input.len() as u32,
                     s.as_ptr(),
@@ -376,7 +362,7 @@ fn mime_smtp_parse_line(
     let mut warnings = 0;
     match ctx.state_flag {
         MimeSmtpParserState::MimeSmtpStart => {
-            if unsafe { MIME_SMTP_CONFIG_BODY_MD5 }
+            if unsafe { MIME_SMTP_CONFIG_ENABLE_BODY_MD5 }
                 && ctx.md5_state != MimeSmtpMd5State::MimeSmtpMd5Started
             {
                 ctx.md5 = Md5::new();
@@ -477,6 +463,7 @@ fn mime_smtp_parse_line(
                     ctx.filename.clear();
                     ctx.headers.truncate(ctx.main_headers_nb);
                     ctx.encoding = MimeSmtpEncoding::Plain;
+                    ctx.bufeolen = 0;
                     if i.len() >= b.len() + 2 && i[b.len()] == b'-' && i[b.len() + 1] == b'-' {
                         ctx.boundaries.pop();
                     }
@@ -571,17 +558,49 @@ fn mime_smtp_parse_line(
                         if i.len() > MAX_ENC_LINE_LEN {
                             warnings |= MIME_ANOM_LONG_ENC_LINE;
                         }
-                        let mut c = 0;
+                        let mut c = 0usize;
                         let mut eol_equal = false;
                         let mut quoted_buffer = Vec::with_capacity(i.len());
+                        if ctx.bufeolen > 0 && ctx.bufeol[0] == b'=' {
+                            // we were escaping
+                            if i.len() >= 2 {
+                                let (h1, h2) = if ctx.bufeolen == 1 {
+                                    (i[0], i[1])
+                                } else {
+                                    (ctx.bufeol[1], i[0])
+                                };
+                                if let Some(v) = hex(h1) {
+                                    if let Some(v2) = hex(h2) {
+                                        quoted_buffer.push((v << 4) | v2);
+                                    }
+                                }
+                            }
+                            if quoted_buffer.is_empty() {
+                                warnings |= MIME_ANOM_INVALID_QP;
+                            }
+                            c = 3 - ctx.bufeolen as usize;
+                            ctx.bufeolen = 0;
+                        } else if ctx.bufeolen > 0 {
+                            quoted_buffer.extend_from_slice(&ctx.bufeol[..ctx.bufeolen as usize]);
+                            ctx.bufeolen = 0;
+                        }
                         while c < i.len() {
                             if i[c] == b'=' {
-                                if c == i.len() - 1 {
+                                if c == i.len() - 1 && full.len() > i.len() {
                                     eol_equal = true;
                                     break;
                                 } else if c + 2 >= i.len() {
-                                    // log event ?
-                                    warnings |= MIME_ANOM_INVALID_QP;
+                                    if full.len() > i.len() {
+                                        // log event ?
+                                        warnings |= MIME_ANOM_INVALID_QP;
+                                    } else {
+                                        // keep in state the bytes to unescape
+                                        ctx.bufeolen = (i.len() - c) as u8;
+                                        ctx.bufeol[0] = b'=';
+                                        if ctx.bufeolen == 2 {
+                                            ctx.bufeol[1] = i[c + 1];
+                                        }
+                                    }
                                     break;
                                 }
                                 if let Some(v) = hex(i[c + 1]) {
@@ -599,7 +618,13 @@ fn mime_smtp_parse_line(
                                 c += 1;
                             }
                         }
-                        if !eol_equal {
+                        if i.is_empty() {
+                            ctx.bufeolen = (full.len() - i.len()) as u8;
+                            if ctx.bufeolen > 0 {
+                                ctx.bufeol[..ctx.bufeolen as usize]
+                                    .copy_from_slice(&full[i.len()..]);
+                            }
+                        } else if !eol_equal {
                             quoted_buffer.extend_from_slice(&full[i.len()..]);
                         }
                         mime_smtp_find_url_strings(ctx, &quoted_buffer);
@@ -638,7 +663,8 @@ pub unsafe extern "C" fn SCSmtpMimeParseLine(
 fn mime_smtp_complete(ctx: &mut MimeStateSMTP) {
     if ctx.md5_state == MimeSmtpMd5State::MimeSmtpMd5Started {
         ctx.md5_state = MimeSmtpMd5State::MimeSmtpMd5Completed;
-        ctx.md5_result = ctx.md5.finalize_reset();
+        let hash = ctx.md5.finalize_reset();
+        ctx.md5_result = format!("{:x}", hash);
     }
     // look for url in the last unfinished line
     mime_smtp_find_url_strings(ctx, b"\n");
@@ -679,7 +705,11 @@ pub unsafe extern "C" fn SCMimeSmtpGetHeader(
     let name: &CStr = CStr::from_ptr(str); //unsafe
 
     // Convert to lowercase, mime::slice_equals_lowercase expects it.
-    let name: Vec<u8> = name.to_bytes().iter().map(|b| b.to_ascii_lowercase()).collect();
+    let name: Vec<u8> = name
+        .to_bytes()
+        .iter()
+        .map(|b| b.to_ascii_lowercase())
+        .collect();
     for h in &ctx.headers[ctx.main_headers_nb..] {
         if mime::slice_equals_lowercase(&h.name, &name) {
             *buffer = h.value.as_ptr();
@@ -710,7 +740,8 @@ pub unsafe extern "C" fn SCMimeSmtpGetHeaderName(
 
 static mut MIME_SMTP_CONFIG_DECODE_BASE64: bool = true;
 static mut MIME_SMTP_CONFIG_DECODE_QUOTED: bool = true;
-static mut MIME_SMTP_CONFIG_BODY_MD5: bool = false;
+static mut MIME_SMTP_CONFIG_ENABLE_BODY_MD5: bool = false;
+static mut MIME_SMTP_CONFIG_DISABLE_BODY_MD5: bool = false;
 static mut MIME_SMTP_CONFIG_HEADER_VALUE_DEPTH: u32 = 0;
 static mut MIME_SMTP_CONFIG_EXTRACT_URLS: bool = true;
 static mut MIME_SMTP_CONFIG_LOG_URL_SCHEME: bool = false;
@@ -737,8 +768,22 @@ pub unsafe extern "C" fn SCMimeSmtpConfigLogUrlScheme(val: std::os::raw::c_int) 
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn SCMimeSmtpConfigBodyMd5(val: std::os::raw::c_int) {
-    MIME_SMTP_CONFIG_BODY_MD5 = val != 0;
+pub unsafe extern "C" fn SCMimeSmtpConfigBodyMd5(val: bool) {
+    if val {
+        MIME_SMTP_CONFIG_ENABLE_BODY_MD5 = true;
+    } else {
+        MIME_SMTP_CONFIG_DISABLE_BODY_MD5 = true;
+    }
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn MimeBodyMd5IsEnabled() -> bool {
+    MIME_SMTP_CONFIG_ENABLE_BODY_MD5
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn MimeBodyMd5IsDisabled() -> bool {
+    MIME_SMTP_CONFIG_DISABLE_BODY_MD5
 }
 
 #[no_mangle]

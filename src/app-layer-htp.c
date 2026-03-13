@@ -427,7 +427,7 @@ static void HTPSetEvent(HtpState *s, HtpTxUserData *htud,
     SCLogDebug("setting event %u", e);
 
     if (htud) {
-        AppLayerDecoderEventsSetEventRaw(&htud->tx_data.events, e);
+        SCAppLayerDecoderEventsSetEventRaw(&htud->tx_data.events, e);
         s->events++;
         return;
     }
@@ -440,7 +440,7 @@ static void HTPSetEvent(HtpState *s, HtpTxUserData *htud,
         tx = HTPStateGetTx(s, tx_id - 1);
     if (tx != NULL) {
         htud = (HtpTxUserData *)htp_tx_get_user_data(tx);
-        AppLayerDecoderEventsSetEventRaw(&htud->tx_data.events, e);
+        SCAppLayerDecoderEventsSetEventRaw(&htud->tx_data.events, e);
         s->events++;
         return;
     }
@@ -486,8 +486,8 @@ static void HtpTxUserDataFree(void *txud)
             SCMimeStateFree(htud->mime_state);
         SCAppLayerTxDataCleanup(&htud->tx_data);
         if (htud->file_range) {
-            HTPFileCloseHandleRange(&htp_sbcfg, &htud->files_tc, 0, htud->file_range, NULL, 0);
-            HttpRangeFreeBlock(htud->file_range);
+            SCHTPFileCloseHandleRange(&htp_sbcfg, &htud->files_tc, 0, htud->file_range, NULL, 0);
+            SCHttpRangeFreeBlock(htud->file_range);
         }
         FileContainerRecycle(&htud->files_ts, &htp_sbcfg);
         FileContainerRecycle(&htud->files_tc, &htp_sbcfg);
@@ -1470,7 +1470,7 @@ end:
 
                 /* body still in progress, but due to min inspect size we need to inspect now */
                 StreamTcpReassemblySetMinInspectDepth(hstate->f->protoctx, STREAM_TOSERVER, depth);
-                AppLayerParserTriggerRawStreamInspection(hstate->f, STREAM_TOSERVER);
+                SCAppLayerParserTriggerRawStreamInspection(hstate->f, STREAM_TOSERVER);
             }
         /* after the start of the body, disable the depth logic */
         } else if (tx_ud->request_body.body_inspected > 0) {
@@ -1562,7 +1562,7 @@ static int HTPCallbackResponseBodyData(const htp_connp_t *connp, htp_tx_data_t *
 
                 /* body still in progress, but due to min inspect size we need to inspect now */
                 StreamTcpReassemblySetMinInspectDepth(hstate->f->protoctx, STREAM_TOCLIENT, depth);
-                AppLayerParserTriggerRawStreamInspection(hstate->f, STREAM_TOCLIENT);
+                SCAppLayerParserTriggerRawStreamInspection(hstate->f, STREAM_TOCLIENT);
             }
         /* after the start of the body, disable the depth logic */
         } else if (tx_ud->response_body.body_inspected > 0) {
@@ -1767,7 +1767,7 @@ static int HTPCallbackRequestComplete(const htp_connp_t *connp, htp_tx_t *tx)
     hstate->last_request_data_stamp = abs_right_edge;
     /* request done, do raw reassembly now to inspect state and stream
      * at the same time. */
-    AppLayerParserTriggerRawStreamInspection(hstate->f, STREAM_TOSERVER);
+    SCAppLayerParserTriggerRawStreamInspection(hstate->f, STREAM_TOSERVER);
     SCReturnInt(HTP_STATUS_OK);
 }
 
@@ -1816,7 +1816,7 @@ static int HTPCallbackResponseComplete(const htp_connp_t *connp, htp_tx_t *tx)
 
     /* response done, do raw reassembly now to inspect state and stream
      * at the same time. */
-    AppLayerParserTriggerRawStreamInspection(hstate->f, STREAM_TOCLIENT);
+    SCAppLayerParserTriggerRawStreamInspection(hstate->f, STREAM_TOCLIENT);
 
     /* handle HTTP CONNECT */
     if (htp_tx_request_method_number(tx) == HTP_METHOD_CONNECT) {
@@ -2784,7 +2784,9 @@ static int HTPParserTest01b(void)
     const htp_header_t *h = htp_tx_request_header_index(tx, 0);
     FAIL_IF_NULL(h);
 
-    FAIL_IF(strcmp(bstr_util_strdup_to_c(htp_header_value(h)), "Victor/1.0"));
+    char *v = bstr_util_strdup_to_c(htp_header_value(h));
+    FAIL_IF(strcmp(v, "Victor/1.0"));
+    SCFree(v);
     FAIL_IF(htp_tx_request_method_number(tx) != HTP_METHOD_POST);
     FAIL_IF(htp_tx_request_protocol_number(tx) != HTP_PROTOCOL_V1_0);
 
@@ -2839,7 +2841,9 @@ static int HTPParserTest01c(void)
     const htp_header_t *h = htp_tx_request_header_index(tx, 0);
     FAIL_IF_NULL(h);
 
-    FAIL_IF(strcmp(bstr_util_strdup_to_c(htp_header_value(h)), "Victor/1.0"));
+    char *v = bstr_util_strdup_to_c(htp_header_value(h));
+    FAIL_IF(strcmp(v, "Victor/1.0"));
+    SCFree(v);
     FAIL_IF(htp_tx_request_method_number(tx) != HTP_METHOD_POST);
     FAIL_IF(htp_tx_request_protocol_number(tx) != HTP_PROTOCOL_V1_0);
 
@@ -2895,7 +2899,9 @@ static int HTPParserTest01a(void)
     const htp_header_t *h = htp_tx_request_header_index(tx, 0);
     FAIL_IF_NULL(h);
 
-    FAIL_IF(strcmp(bstr_util_strdup_to_c(htp_header_value(h)), "Victor/1.0"));
+    char *v = bstr_util_strdup_to_c(htp_header_value(h));
+    FAIL_IF(strcmp(v, "Victor/1.0"));
+    SCFree(v);
     FAIL_IF(htp_tx_request_method_number(tx) != HTP_METHOD_POST);
     FAIL_IF(htp_tx_request_protocol_number(tx) != HTP_PROTOCOL_V1_0);
 
@@ -4729,19 +4735,19 @@ libhtp:\n\
 /** \test BG box crash -- chunks are messed up. Observed for real. */
 static int HTPBodyReassemblyTest01(void)
 {
-    HtpTxUserData htud;
-    memset(&htud, 0x00, sizeof(htud));
+    HtpTxUserData *htud = HTPCalloc(1, sizeof(*htud));
+    FAIL_IF_NULL(htud);
     HtpState hstate;
     memset(&hstate, 0x00, sizeof(hstate));
     Flow flow;
     memset(&flow, 0x00, sizeof(flow));
     AppLayerParserState *parser = AppLayerParserStateAlloc();
     htp_cfg_t *cfg = htp_config_create();
-    BUG_ON(cfg == NULL);
+    FAIL_IF(cfg == NULL);
     htp_connp_t *connp = htp_connp_create(cfg);
-    BUG_ON(connp == NULL);
+    FAIL_IF(connp == NULL);
     const htp_tx_t *tx = htp_connp_get_request_tx(connp);
-    BUG_ON(tx == NULL);
+    FAIL_IF(tx == NULL);
 
     hstate.f = &flow;
     flow.alparser = parser;
@@ -4749,15 +4755,15 @@ static int HTPBodyReassemblyTest01(void)
     uint8_t chunk1[] = "--e5a320f21416a02493a0a6f561b1c494\r\nContent-Disposition: form-data; name=\"uploadfile\"; filename=\"D2GUef.jpg\"\r";
     uint8_t chunk2[] = "POST /uri HTTP/1.1\r\nHost: hostname.com\r\nKeep-Alive: 115\r\nAccept-Charset: utf-8\r\nUser-Agent: Mozilla/5.0 (X11; Linux i686; rv:9.0.1) Gecko/20100101 Firefox/9.0.1\r\nAccept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8\r\nConnection: keep-alive\r\nContent-length: 68102\r\nReferer: http://otherhost.com\r\nAccept-Encoding: gzip\r\nContent-Type: multipart/form-data; boundary=e5a320f21416a02493a0a6f561b1c494\r\nCookie: blah\r\nAccept-Language: us\r\n\r\n--e5a320f21416a02493a0a6f561b1c494\r\nContent-Disposition: form-data; name=\"uploadfile\"; filename=\"D2GUef.jpg\"\r";
 
-    int r = HtpBodyAppendChunk(&htud.request_body, chunk1, sizeof(chunk1) - 1);
-    BUG_ON(r != 0);
-    r = HtpBodyAppendChunk(&htud.request_body, chunk2, sizeof(chunk2) - 1);
-    BUG_ON(r != 0);
+    int r = HtpBodyAppendChunk(&htud->request_body, chunk1, sizeof(chunk1) - 1);
+    FAIL_IF(r != 0);
+    r = HtpBodyAppendChunk(&htud->request_body, chunk2, sizeof(chunk2) - 1);
+    FAIL_IF(r != 0);
 
     const uint8_t *chunks_buffer = NULL;
     uint32_t chunks_buffer_len = 0;
 
-    HtpRequestBodyReassemble(&htud, &chunks_buffer, &chunks_buffer_len);
+    HtpRequestBodyReassemble(htud, &chunks_buffer, &chunks_buffer_len);
     FAIL_IF_NULL(chunks_buffer);
 #ifdef PRINT
     printf("REASSCHUNK START: \n");
@@ -4765,16 +4771,20 @@ static int HTPBodyReassemblyTest01(void)
     printf("REASSCHUNK END: \n");
 #endif
 
-    htud.mime_state = SCMimeStateInit((const uint8_t *)"multipart/form-data; boundary=toto",
+    htud->mime_state = SCMimeStateInit((const uint8_t *)"multipart/form-data; boundary=toto",
             strlen("multipart/form-data; boundary=toto"));
-    FAIL_IF_NULL(htud.mime_state);
-    htud.tsflags |= HTP_BOUNDARY_SET;
-    HtpRequestBodyHandleMultipart(&hstate, &htud, &tx, chunks_buffer, chunks_buffer_len, false);
+    FAIL_IF_NULL(htud->mime_state);
+    htud->tsflags |= HTP_BOUNDARY_SET;
+    HtpRequestBodyHandleMultipart(&hstate, htud, &tx, chunks_buffer, chunks_buffer_len, false);
 
-    FAIL_IF(htud.request_body.content_len_so_far != 669);
+    FAIL_IF(htud->request_body.content_len_so_far != 669);
 
-    FAIL_IF_NOT_NULL(htud.files_ts.head);
+    FAIL_IF_NOT_NULL(htud->files_ts.head);
 
+    htp_connp_destroy_all(connp);
+    HtpTxUserDataFree(htud);
+    AppLayerParserStateFree(parser);
+    htp_config_destroy(cfg);
     PASS;
 }
 
@@ -5620,6 +5630,7 @@ libhtp:\n\
     SCConfDeInit();
     SCConfRestoreContextBackup();
     HtpConfigRestoreBackup();
+    StatsThreadCleanup(&th_v);
     PASS;
 }
 

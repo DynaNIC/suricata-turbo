@@ -26,6 +26,7 @@
  */
 
 #include "suricata-common.h"
+
 #include "app-layer-ftp.h"
 #include "app-layer.h"
 #include "app-layer-parser.h"
@@ -462,7 +463,7 @@ static AppLayerResult FTPParseRequest(Flow *f, void *ftp_state, AppLayerParserSt
             state->current_line_truncated_ts = false;
         }
         if (tx->request_truncated) {
-            AppLayerDecoderEventsSetEventRaw(&tx->tx_data.events, FtpEventRequestCommandTooLong);
+            SCAppLayerDecoderEventsSetEventRaw(&tx->tx_data.events, FtpEventRequestCommandTooLong);
         }
 
         /* change direction (default to server) so expectation will handle
@@ -705,7 +706,7 @@ static AppLayerResult FTPParseResponse(Flow *f, void *ftp_state, AppLayerParserS
                 if (likely(wrapper)) {
                     response->truncated = state->current_line_truncated_tc;
                     if (response->truncated) {
-                        AppLayerDecoderEventsSetEventRaw(
+                        SCAppLayerDecoderEventsSetEventRaw(
                                 &tx->tx_data.events, FtpEventResponseCommandTooLong);
                     }
                     if (line.lf_found) {
@@ -998,7 +999,7 @@ static AppLayerResult FTPDataParse(Flow *f, FtpDataState *ftpdata_state,
         ftpdata_state->tx_data.updated_tc = true;
     }
     /* we depend on detection engine for file pruning */
-    const uint16_t flags = FileFlowFlagsToFlags(ftpdata_state->tx_data.file_flags, direction);
+    const uint16_t flags = SCFileFlowFlagsToFlags(ftpdata_state->tx_data.file_flags, direction);
     int ret = 0;
 
     SCLogDebug("FTP-DATA input_len %u flags %04x dir %d/%s EOF %s", input_len, flags, direction,
@@ -1411,6 +1412,7 @@ void FTPParserCleanup(void)
 
 /* UNITTESTS */
 #ifdef UNITTESTS
+#include "flow-util.h"
 #include "stream-tcp.h"
 
 /** \test Send a get request in one chunk. */
@@ -1439,6 +1441,7 @@ static int FTPParserTest01(void)
     FAIL_IF_NULL(ftp_state);
     FAIL_IF(ftp_state->command != FTP_COMMAND_PORT);
 
+    FLOW_DESTROY(&f);
     AppLayerParserThreadCtxFree(alp_tctx);
     StreamTcpFreeConfig(true);
     PASS;
@@ -1486,6 +1489,7 @@ static int FTPParserTest11(void)
 
     FAIL_IF(ftp_state->command != FTP_COMMAND_RETR);
 
+    FLOW_DESTROY(&f);
     AppLayerParserThreadCtxFree(alp_tctx);
     StreamTcpFreeConfig(true);
     PASS;
@@ -1533,6 +1537,7 @@ static int FTPParserTest12(void)
 
     FAIL_IF(ftp_state->command != FTP_COMMAND_STOR);
 
+    FLOW_DESTROY(&f);
     AppLayerParserThreadCtxFree(alp_tctx);
     StreamTcpFreeConfig(true);
     PASS;

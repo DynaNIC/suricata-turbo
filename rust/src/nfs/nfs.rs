@@ -26,7 +26,7 @@ use nom7::{Err, Needed};
 use suricata_sys::sys::{
     AppLayerParserState, AppProto, SCAppLayerParserConfParserEnabled,
     SCAppLayerProtoDetectConfProtoDetectionEnabled, SCAppLayerProtoDetectPPParseConfPorts,
-    SCAppLayerProtoDetectPPRegister,
+    SCAppLayerProtoDetectPPRegister, SCFileFlowFlagsToFlags,
 };
 
 use crate::applayer;
@@ -35,7 +35,6 @@ use crate::conf::*;
 use crate::core::*;
 use crate::direction::Direction;
 use crate::direction::DIR_BOTH;
-use crate::filecontainer::*;
 use crate::filetracker::*;
 use crate::flow::{Flow, flow_get_last_time};
 use crate::frames::*;
@@ -166,7 +165,7 @@ impl NFSTransactionFile {
         } else {
             STREAM_TOCLIENT
         };
-        self.file_tracker.file_flags = unsafe { FileFlowFlagsToFlags(flow_file_flags, dir_flag) };
+        self.file_tracker.file_flags = unsafe { SCFileFlowFlagsToFlags(flow_file_flags, dir_flag) };
     }
 }
 
@@ -2045,35 +2044,6 @@ unsafe extern "C" fn nfs_get_tx_data(tx: *mut std::os::raw::c_void) -> *mut AppL
 }
 
 export_state_data_get!(nfs_get_state_data, NFSState);
-
-/// return procedure(s) in the tx. At 0 return the main proc,
-/// otherwise get procs from the 'file_additional_procs'.
-/// Keep calling until 0 is returned.
-#[no_mangle]
-pub unsafe extern "C" fn SCNfsTxGetProcedures(
-    tx: &mut NFSTransaction, i: u16, procedure: *mut u32,
-) -> u8 {
-    if i == 0 {
-        *procedure = tx.procedure;
-        return 1;
-    }
-
-    if !tx.is_file_tx {
-        return 0;
-    }
-
-    /* file tx handling follows */
-
-    if let Some(NFSTransactionTypeData::FILE(ref mut tdf)) = tx.type_data {
-        let idx = i as usize - 1;
-        if idx < tdf.file_additional_procs.len() {
-            let p = tdf.file_additional_procs[idx];
-            *procedure = p;
-            return 1;
-        }
-    }
-    return 0;
-}
 
 #[no_mangle]
 pub unsafe extern "C" fn SCNfsTxGetVersion(tx: &mut NFSTransaction, version: *mut u32) {

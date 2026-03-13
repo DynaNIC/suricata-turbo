@@ -71,7 +71,6 @@
 #include "detect-http-host.h"
 
 #include "detect-mark.h"
-#include "detect-nfs-procedure.h"
 #include "detect-nfs-version.h"
 
 #include "detect-engine-event.h"
@@ -198,7 +197,6 @@
 #include "detect-ipv6hdr.h"
 #include "detect-krb5-cname.h"
 #include "detect-krb5-errcode.h"
-#include "detect-krb5-msgtype.h"
 #include "detect-krb5-sname.h"
 #include "detect-krb5-ticket-encryption.h"
 #include "detect-sip-method.h"
@@ -292,7 +290,7 @@ int DETECT_TBLSIZE_IDX = DETECT_TBLSIZE_STATIC;
 
 static void PrintFeatureList(const SigTableElmt *e, char sep)
 {
-    const uint16_t flags = e->flags;
+    const uint32_t flags = e->flags;
 
     int prev = 0;
     if (flags & SIGMATCH_NOOPT) {
@@ -327,6 +325,32 @@ static void PrintFeatureList(const SigTableElmt *e, char sep)
         if (prev == 1)
             printf("%c", sep);
         printf("supports firewall");
+        prev = 1;
+    }
+    if (flags & SIGMATCH_INFO_MULTI_BUFFER) {
+        if (prev == 1)
+            printf("%c", sep);
+        printf("multi buffer");
+        prev = 1;
+    }
+    if (flags & (SIGMATCH_INFO_UINT8 | SIGMATCH_INFO_UINT16 | SIGMATCH_INFO_UINT32 |
+                        SIGMATCH_INFO_UINT64)) {
+        if (prev == 1)
+            printf("%c", sep);
+        if (flags & SIGMATCH_INFO_MULTI_UINT)
+            printf("multi ");
+        if (flags & SIGMATCH_INFO_ENUM_UINT)
+            printf("enum ");
+        if (flags & SIGMATCH_INFO_BITFLAGS_UINT)
+            printf("bitflags ");
+        if (flags & SIGMATCH_INFO_UINT8)
+            printf("uint8");
+        if (flags & SIGMATCH_INFO_UINT16)
+            printf("uint16");
+        if (flags & SIGMATCH_INFO_UINT32)
+            printf("uint32");
+        if (flags & SIGMATCH_INFO_UINT64)
+            printf("uint64");
         prev = 1;
     }
     if (e->Transform) {
@@ -679,7 +703,7 @@ void SigTableSetup(void)
     DetectTlsRegister();
     DetectTlsValidityRegister();
     DetectTlsVersionRegister();
-    DetectNfsProcedureRegister();
+    SCDetectNfsProcedureRegister();
     DetectNfsVersionRegister();
     DetectUrilenRegister();
     DetectBsizeRegister();
@@ -716,7 +740,7 @@ void SigTableSetup(void)
     DetectIpv6hdrRegister();
     DetectKrb5CNameRegister();
     DetectKrb5ErrCodeRegister();
-    DetectKrb5MsgTypeRegister();
+    SCDetectKrb5MsgTypeRegister();
     DetectKrb5SNameRegister();
     DetectKrb5TicketEncryptionRegister();
     DetectSipMethodRegister();

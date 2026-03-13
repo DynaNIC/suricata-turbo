@@ -58,13 +58,13 @@ int HTPFileOpen(HtpState *s, HtpTxUserData *tx, const uint8_t *filename, uint16_
 
     if (direction & STREAM_TOCLIENT) {
         files = &tx->files_tc;
-        flags = FileFlowFlagsToFlags(tx->tx_data.file_flags, STREAM_TOCLIENT);
+        flags = SCFileFlowFlagsToFlags(tx->tx_data.file_flags, STREAM_TOCLIENT);
 
         // we shall not open a new file if there is a current one
         DEBUG_VALIDATE_BUG_ON(tx->file_range != NULL);
     } else {
         files = &tx->files_ts;
-        flags = FileFlowFlagsToFlags(tx->tx_data.file_flags, STREAM_TOSERVER);
+        flags = SCFileFlowFlagsToFlags(tx->tx_data.file_flags, STREAM_TOSERVER);
     }
 
     if (FileOpenFileWithId(files, &htp_sbcfg, s->file_track_id++, filename, filename_len, data,
@@ -112,7 +112,7 @@ static int HTPParseAndCheckContentRange(
 {
     int r = HTPParseContentRange(rawvalue, range);
     if (r != 0) {
-        AppLayerDecoderEventsSetEventRaw(&htud->tx_data.events, HTTP_DECODER_EVENT_RANGE_INVALID);
+        SCAppLayerDecoderEventsSetEventRaw(&htud->tx_data.events, HTTP_DECODER_EVENT_RANGE_INVALID);
         s->events++;
         SCLogDebug("parsing range failed, going back to normal file");
         return r;
@@ -129,7 +129,7 @@ static int HTPParseAndCheckContentRange(
         SCLogDebug("range without all information");
         return -3;
     } else if (range->start > range->end || range->end > range->size - 1) {
-        AppLayerDecoderEventsSetEventRaw(&htud->tx_data.events, HTTP_DECODER_EVENT_RANGE_INVALID);
+        SCAppLayerDecoderEventsSetEventRaw(&htud->tx_data.events, HTTP_DECODER_EVENT_RANGE_INVALID);
         s->events++;
         SCLogDebug("invalid range");
         return -4;
@@ -198,7 +198,7 @@ int HTPFileOpenWithRange(HtpState *s, HtpTxUserData *txud, const uint8_t *filena
         SCReturnInt(0);
     }
     DEBUG_VALIDATE_BUG_ON(htud->file_range);
-    htud->file_range = HttpRangeContainerOpenFile(keyurl, keylen, s->f, &crparsed, &htp_sbcfg,
+    htud->file_range = SCHttpRangeContainerOpenFile(keyurl, keylen, s->f, &crparsed, &htp_sbcfg,
             filename, filename_len, flags, data, data_len);
     SCFree(keyurl);
     if (htud->file_range == NULL) {
@@ -242,7 +242,7 @@ int HTPFileStoreChunk(HtpTxUserData *tx, const uint8_t *data, uint32_t data_len,
     }
 
     if (tx->file_range != NULL) {
-        if (HttpRangeAppendData(&htp_sbcfg, tx->file_range, data, data_len) < 0) {
+        if (SCHttpRangeAppendData(&htp_sbcfg, tx->file_range, data, data_len) < 0) {
             SCLogDebug("Failed to append data");
         }
     }
@@ -264,11 +264,11 @@ end:
  *  \retval true if reassembled file was added
  *  \retval false if no reassembled file was added
  */
-bool HTPFileCloseHandleRange(const StreamingBufferConfig *sbcfg, FileContainer *files,
+bool SCHTPFileCloseHandleRange(const StreamingBufferConfig *sbcfg, FileContainer *files,
         const uint16_t flags, HttpRangeContainerBlock *c, const uint8_t *data, uint32_t data_len)
 {
     bool added = false;
-    if (HttpRangeAppendData(sbcfg, c, data, data_len) < 0) {
+    if (SCHttpRangeAppendData(sbcfg, c, data, data_len) < 0) {
         SCLogDebug("Failed to append data");
     }
     if (c->container) {
@@ -340,11 +340,11 @@ int HTPFileClose(
 
     if (tx->file_range != NULL) {
         bool added =
-                HTPFileCloseHandleRange(&htp_sbcfg, files, flags, tx->file_range, data, data_len);
+                SCHTPFileCloseHandleRange(&htp_sbcfg, files, flags, tx->file_range, data, data_len);
         if (added) {
             tx->tx_data.files_opened++;
         }
-        HttpRangeFreeBlock(tx->file_range);
+        SCHttpRangeFreeBlock(tx->file_range);
         tx->file_range = NULL;
     }
 
@@ -404,7 +404,9 @@ static int HTPFileParserTest01(void)
     FAIL_IF_NULL(tx);
     FAIL_IF_NULL(htp_tx_request_method(tx));
 
-    FAIL_IF(memcmp(bstr_util_strdup_to_c(htp_tx_request_method(tx)), "POST", 4) != 0);
+    char *m = bstr_util_strdup_to_c(htp_tx_request_method(tx));
+    FAIL_IF(memcmp(m, "POST", 4) != 0);
+    SCFree(m);
 
     AppLayerParserThreadCtxFree(alp_tctx);
     StreamTcpFreeConfig(true);
@@ -477,7 +479,9 @@ static int HTPFileParserTest02(void)
     htp_tx_t *tx = AppLayerParserGetTx(IPPROTO_TCP, ALPROTO_HTTP1, http_state, 0);
     FAIL_IF_NULL(tx);
     FAIL_IF_NULL(htp_tx_request_method(tx));
-    FAIL_IF(memcmp(bstr_util_strdup_to_c(htp_tx_request_method(tx)), "POST", 4) != 0);
+    char *m = bstr_util_strdup_to_c(htp_tx_request_method(tx));
+    FAIL_IF(memcmp(m, "POST", 4) != 0);
+    SCFree(m);
     HtpTxUserData *tx_ud = htp_tx_get_user_data(tx);
     FAIL_IF_NULL(tx_ud);
     FAIL_IF_NULL(tx_ud->files_ts.tail);
@@ -570,7 +574,9 @@ static int HTPFileParserTest03(void)
     FAIL_IF_NULL(tx);
     FAIL_IF_NULL(htp_tx_request_method(tx));
 
-    FAIL_IF(memcmp(bstr_util_strdup_to_c(htp_tx_request_method(tx)), "POST", 4) != 0);
+    char *m = bstr_util_strdup_to_c(htp_tx_request_method(tx));
+    FAIL_IF(memcmp(m, "POST", 4) != 0);
+    SCFree(m);
 
     HtpTxUserData *tx_ud = htp_tx_get_user_data(tx);
     FAIL_IF_NULL(tx_ud);
@@ -666,7 +672,9 @@ static int HTPFileParserTest04(void)
     FAIL_IF_NULL(tx);
     FAIL_IF_NULL(htp_tx_request_method(tx));
 
-    FAIL_IF(memcmp(bstr_util_strdup_to_c(htp_tx_request_method(tx)), "POST", 4) != 0);
+    char *m = bstr_util_strdup_to_c(htp_tx_request_method(tx));
+    FAIL_IF(memcmp(m, "POST", 4) != 0);
+    SCFree(m);
 
     HtpTxUserData *tx_ud = htp_tx_get_user_data(tx);
     FAIL_IF_NULL(tx_ud);
@@ -732,7 +740,9 @@ static int HTPFileParserTest05(void)
     FAIL_IF_NULL(tx);
     FAIL_IF_NULL(htp_tx_request_method(tx));
 
-    FAIL_IF(memcmp(bstr_util_strdup_to_c(htp_tx_request_method(tx)), "POST", 4) != 0);
+    char *m = bstr_util_strdup_to_c(htp_tx_request_method(tx));
+    FAIL_IF(memcmp(m, "POST", 4) != 0);
+    SCFree(m);
 
     HtpTxUserData *tx_ud = htp_tx_get_user_data(tx);
     FAIL_IF_NULL(tx_ud);
@@ -807,7 +817,9 @@ static int HTPFileParserTest06(void)
     FAIL_IF_NULL(tx);
     FAIL_IF_NULL(htp_tx_request_method(tx));
 
-    FAIL_IF(memcmp(bstr_util_strdup_to_c(htp_tx_request_method(tx)), "POST", 4) != 0);
+    char *m = bstr_util_strdup_to_c(htp_tx_request_method(tx));
+    FAIL_IF(memcmp(m, "POST", 4) != 0);
+    SCFree(m);
 
     HtpTxUserData *tx_ud = htp_tx_get_user_data(tx);
     FAIL_IF_NULL(tx_ud);
@@ -871,7 +883,9 @@ static int HTPFileParserTest07(void)
     htp_tx_t *tx = AppLayerParserGetTx(IPPROTO_TCP, ALPROTO_HTTP1, http_state, 0);
     FAIL_IF_NULL(tx);
     FAIL_IF_NULL(htp_tx_request_method(tx));
-    FAIL_IF(memcmp(bstr_util_strdup_to_c(htp_tx_request_method(tx)), "POST", 4) != 0);
+    char *m = bstr_util_strdup_to_c(htp_tx_request_method(tx));
+    FAIL_IF(memcmp(m, "POST", 4) != 0);
+    SCFree(m);
 
     HtpTxUserData *tx_ud = htp_tx_get_user_data(tx);
     FAIL_IF_NULL(tx_ud);
@@ -1194,7 +1208,9 @@ static int HTPFileParserTest11(void)
     FAIL_IF_NULL(tx);
     FAIL_IF_NULL(htp_tx_request_method(tx));
 
-    FAIL_IF(memcmp(bstr_util_strdup_to_c(htp_tx_request_method(tx)), "POST", 4) != 0);
+    char *m = bstr_util_strdup_to_c(htp_tx_request_method(tx));
+    FAIL_IF(memcmp(m, "POST", 4) != 0);
+    SCFree(m);
 
     HtpTxUserData *tx_ud = htp_tx_get_user_data(tx);
     FAIL_IF_NULL(tx_ud);

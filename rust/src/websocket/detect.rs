@@ -18,10 +18,13 @@
 use super::websocket::{WebSocketTransaction, ALPROTO_WEBSOCKET};
 use crate::core::{STREAM_TOCLIENT, STREAM_TOSERVER};
 use crate::detect::uint::{
-    detect_parse_uint, detect_parse_uint_enum, DetectUintData, DetectUintMode, SCDetectU32Free,
-    SCDetectU32Match, SCDetectU32Parse, SCDetectU8Free, SCDetectU8Match,
+    detect_parse_uint_bitflags, detect_parse_uint_enum, DetectBitflagModifier, DetectUintData,
+    SCDetectU32Free, SCDetectU32Match, SCDetectU32Parse, SCDetectU8Free, SCDetectU8Match,
 };
-use crate::detect::{helper_keyword_register_sticky_buffer, SigTableElmtStickyBuffer};
+use crate::detect::{
+    helper_keyword_register_sticky_buffer, SigTableElmtStickyBuffer, SIGMATCH_INFO_BITFLAGS_UINT,
+    SIGMATCH_INFO_ENUM_UINT, SIGMATCH_INFO_UINT32, SIGMATCH_INFO_UINT8,
+};
 use crate::websocket::parser::WebSocketOpcode;
 use suricata_sys::sys::{
     DetectEngineCtx, DetectEngineThreadCtx, Flow, SCDetectBufferSetActiveList,
@@ -29,12 +32,6 @@ use suricata_sys::sys::{
     SCDetectSignatureSetAppProto, SCSigMatchAppendSMToList, SCSigTableAppLiteElmt, SigMatchCtx,
     Signature,
 };
-
-use nom7::branch::alt;
-use nom7::bytes::complete::{is_a, tag};
-use nom7::combinator::{opt, value};
-use nom7::multi::many1;
-use nom7::IResult;
 
 use std::ffi::CStr;
 use std::os::raw::{c_int, c_void};
@@ -52,51 +49,11 @@ unsafe extern "C" fn websocket_parse_opcode(
     return std::ptr::null_mut();
 }
 
-struct WebSocketFlag {
-    neg: bool,
-    value: u8,
-}
-
-fn parse_flag_list_item(s: &str) -> IResult<&str, WebSocketFlag> {
-    let (s, _) = opt(is_a(" "))(s)?;
-    let (s, neg) = opt(tag("!"))(s)?;
-    let neg = neg.is_some();
-    let (s, value) = alt((value(0x80, tag("fin")), value(0x40, tag("comp"))))(s)?;
-    let (s, _) = opt(is_a(" ,"))(s)?;
-    Ok((s, WebSocketFlag { neg, value }))
-}
-
-fn parse_flag_list(s: &str) -> IResult<&str, Vec<WebSocketFlag>> {
-    return many1(parse_flag_list_item)(s);
-}
-
-fn parse_flags(s: &str) -> Option<DetectUintData<u8>> {
-    // try first numerical value
-    if let Ok((_, ctx)) = detect_parse_uint::<u8>(s) {
-        return Some(ctx);
-    }
-    // otherwise, try strings for bitmask
-    if let Ok((_, l)) = parse_flag_list(s) {
-        let mut arg1 = 0;
-        let mut arg2 = 0;
-        for elem in l.iter() {
-            if elem.value & arg1 != 0 {
-                SCLogWarning!("Repeated bitflag for websocket.flags");
-                return None;
-            }
-            arg1 |= elem.value;
-            if !elem.neg {
-                arg2 |= elem.value;
-            }
-        }
-        let ctx = DetectUintData::<u8> {
-            arg1,
-            arg2,
-            mode: DetectUintMode::DetectUintModeBitmask,
-        };
-        return Some(ctx);
-    }
-    return None;
+#[repr(u8)]
+#[derive(EnumStringU8)]
+pub enum WebSocketFlag {
+    Fin = 0x80,
+    Comp = 0x40,
 }
 
 unsafe extern "C" fn websocket_parse_flags(
@@ -104,7 +61,9 @@ unsafe extern "C" fn websocket_parse_flags(
 ) -> *mut DetectUintData<u8> {
     let ft_name: &CStr = CStr::from_ptr(ustr); //unsafe
     if let Ok(s) = ft_name.to_str() {
-        if let Some(ctx) = parse_flags(s) {
+        if let Some(ctx) =
+            detect_parse_uint_bitflags::<u8, WebSocketFlag>(s, DetectBitflagModifier::Plus, false)
+        {
             let boxed = Box::new(ctx);
             return Box::into_raw(boxed) as *mut _;
         }
@@ -273,7 +232,7 @@ pub unsafe extern "C" fn SCDetectWebsocketRegister() {
         AppLayerTxMatch: Some(websocket_detect_opcode_match),
         Setup: Some(websocket_detect_opcode_setup),
         Free: Some(websocket_detect_opcode_free),
-        flags: 0,
+        flags: SIGMATCH_INFO_UINT8 | SIGMATCH_INFO_ENUM_UINT,
     };
     G_WEBSOCKET_OPCODE_KW_ID = SCDetectHelperKeywordRegister(&kw);
     G_WEBSOCKET_OPCODE_BUFFER_ID = SCDetectHelperBufferRegister(
@@ -288,7 +247,7 @@ pub unsafe extern "C" fn SCDetectWebsocketRegister() {
         AppLayerTxMatch: Some(websocket_detect_mask_match),
         Setup: Some(websocket_detect_mask_setup),
         Free: Some(websocket_detect_mask_free),
-        flags: 0,
+        flags: SIGMATCH_INFO_UINT32,
     };
     G_WEBSOCKET_MASK_KW_ID = SCDetectHelperKeywordRegister(&kw);
     G_WEBSOCKET_MASK_BUFFER_ID = SCDetectHelperBufferRegister(
@@ -303,7 +262,7 @@ pub unsafe extern "C" fn SCDetectWebsocketRegister() {
         AppLayerTxMatch: Some(websocket_detect_flags_match),
         Setup: Some(websocket_detect_flags_setup),
         Free: Some(websocket_detect_flags_free),
-        flags: 0,
+        flags: SIGMATCH_INFO_UINT8 | SIGMATCH_INFO_BITFLAGS_UINT,
     };
     G_WEBSOCKET_FLAGS_KW_ID = SCDetectHelperKeywordRegister(&kw);
     G_WEBSOCKET_FLAGS_BUFFER_ID = SCDetectHelperBufferRegister(

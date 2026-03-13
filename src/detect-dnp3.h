@@ -26,9 +26,6 @@ typedef struct DNP3Mapping_ {
     uint16_t  value;
 } DNP3Mapping;
 
-/* Map of internal indicators to value for external use. */
-extern DNP3Mapping DNP3IndicatorsMap[];
-
 void DetectDNP3Register(void);
 
 #endif /* SURICATA_DETECT_DNP3_H */

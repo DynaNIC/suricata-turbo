@@ -155,7 +155,8 @@ void DetectFiledataRegister(void)
 #ifdef UNITTESTS
     sigmatch_table[DETECT_FILE_DATA].RegisterTests = DetectFiledataRegisterTests;
 #endif
-    sigmatch_table[DETECT_FILE_DATA].flags = SIGMATCH_OPTIONAL_OPT | SIGMATCH_SUPPORT_DIR;
+    sigmatch_table[DETECT_FILE_DATA].flags =
+            SIGMATCH_OPTIONAL_OPT | SIGMATCH_SUPPORT_DIR | SIGMATCH_INFO_MULTI_BUFFER;
 
     filehandler_table[DETECT_FILE_DATA].name = "file_data";
     filehandler_table[DETECT_FILE_DATA].priority = 2;
@@ -206,13 +207,9 @@ static int DetectFiledataSetup (DetectEngineCtx *de_ctx, Signature *s, const cha
 {
     SCEnter();
 
-    if (!DetectProtoContainsProto(&s->proto, IPPROTO_TCP)) {
-        SCLogError("The 'file_data' keyword cannot be used with non-TCP protocols");
-        return -1;
-    }
-
-    if (s->alproto != ALPROTO_UNKNOWN && !AppLayerParserSupportsFiles(IPPROTO_TCP, s->alproto)) {
-        SCLogError("The 'file_data' keyword cannot be used with TCP protocol %s",
+    if (s->alproto != ALPROTO_UNKNOWN && !AppLayerParserSupportsFiles(IPPROTO_TCP, s->alproto) &&
+            !AppLayerParserSupportsFiles(IPPROTO_UDP, s->alproto)) {
+        SCLogError("The 'file_data' keyword cannot be used with protocol %s",
                 AppLayerGetProtoName(s->alproto));
         return -1;
     }

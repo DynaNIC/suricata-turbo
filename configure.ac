@@ -1,4 +1,4 @@
-    AC_INIT([suricata],[8.0.1-dev])
+    AC_INIT([suricata],[9.0.0-dev])
     m4_ifndef([AM_SILENT_RULES], [m4_define([AM_SILENT_RULES],[])])AM_SILENT_RULES([yes])
     AC_CONFIG_HEADERS([src/autoconf.h])
     AC_CONFIG_SRCDIR([src/suricata.c])
@@ -2068,7 +2068,13 @@ fi
 
 # Cargo/Rust
     AM_CONDITIONAL([RUST_CROSS_COMPILE], [test "x$cross_compiling" = "xyes"])
-    AC_PATH_PROG(RUSTC, rustc, "no")
+
+    # Check for rustc, respecting RUSTC environment variable
+    AC_ARG_VAR([RUSTC], [Rustc command])
+    if test -z "$RUSTC"; then
+        RUSTC="rustc"
+    fi
+    AC_PATH_PROG(RUSTC, $RUSTC, "no")
     if test "$RUSTC" = "no"; then
         echo ""
         echo "    ERROR: Rust compiler not found."
@@ -2082,9 +2088,24 @@ fi
         exit 1
     fi
 
-    AC_PATH_PROG(CARGO, cargo, "no")
-    if test "CARGO" = "no"; then
+    # Check for cargo, respecting CARGO environment variable
+    AC_ARG_VAR([CARGO], [Cargo command])
+    if test -z "$CARGO"; then
+        CARGO="cargo"
+    fi
+    AC_PATH_PROG(CARGO, $CARGO, "no")
+    if test "$CARGO" = "no"; then
         AC_MSG_ERROR([cargo required])
+    fi
+
+    # Check for rustdoc, respecting RUSTDOC environment variable
+    AC_ARG_VAR([RUSTDOC], [Rustdoc command])
+    if test -z "$RUSTDOC"; then
+        RUSTDOC="rustdoc"
+    fi
+    AC_PATH_PROG(RUSTDOC, $RUSTDOC, "no")
+    if test "$RUSTDOC" = "no"; then
+        AC_MSG_ERROR([rustdoc required])
     fi
 
     AC_DEFINE([HAVE_RUST],[1],[Enable Rust language])
@@ -2178,6 +2199,9 @@ fi
     AC_SUBST(rust_vendor_comment)
     AM_CONDITIONAL([HAVE_RUST_VENDOR], [test "x$have_rust_vendor" = "xyes"])
 
+# Bindgen requires rustfmt.
+    AC_PATH_PROG([RUSTFMT], [rustfmt], [no])
+
 # Check for bindgen
     AC_PATH_PROG([BINDGEN], [bindgen], [no])
     if test "x$BINDGEN" != "xno"; then
@@ -2194,7 +2218,7 @@ fi
         BINDGEN="no"
       fi
     fi
-    AM_CONDITIONAL([HAVE_BINDGEN], [test "x$BINDGEN" != "xno"])
+    AM_CONDITIONAL([HAVE_BINDGEN], [test "x$BINDGEN" != "xno" -a "x$RUSTFMT" != "xno"])
 
     have_rust_headers="no"
     AC_MSG_CHECKING(for $srcdir/rust/dist/rust-bindings.h)

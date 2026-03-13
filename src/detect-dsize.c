@@ -66,7 +66,7 @@ void DetectDsizeRegister (void)
     sigmatch_table[DETECT_DSIZE].Match = DetectDsizeMatch;
     sigmatch_table[DETECT_DSIZE].Setup = DetectDsizeSetup;
     sigmatch_table[DETECT_DSIZE].Free  = DetectDsizeFree;
-    sigmatch_table[DETECT_DSIZE].flags = SIGMATCH_SUPPORT_FIREWALL;
+    sigmatch_table[DETECT_DSIZE].flags = SIGMATCH_SUPPORT_FIREWALL | SIGMATCH_INFO_UINT16;
 #ifdef UNITTESTS
     sigmatch_table[DETECT_DSIZE].RegisterTests = DsizeRegisterTests;
 #endif
@@ -628,10 +628,9 @@ static int DetectDsizeIcmpv6Test01(void)
     DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
     DetectEngineCtxFree(de_ctx);
 
-    PacketRecycle(p);
+    PacketFree(p);
     FlowShutdown();
-    SCFree(p);
-
+    StatsThreadCleanup(&th_v);
     PASS;
 }
 

@@ -20,12 +20,12 @@ use super::detect;
 use super::parser;
 use super::range;
 
+use super::range::{SCHTPFileCloseHandleRange, SCHttpRangeFreeBlock};
 use crate::applayer::{self, *};
 use crate::conf::conf_get;
 use crate::core::*;
 use crate::direction::Direction;
 use crate::dns::dns::DnsVariant;
-use crate::filecontainer::*;
 use crate::filetracker::*;
 use crate::flow::Flow;
 use crate::frames::Frame;
@@ -39,9 +39,10 @@ use std::ffi::CString;
 use std::fmt;
 use std::io;
 use suricata_sys::sys::{
-    AppLayerParserState, AppProto, SCAppLayerForceProtocolChange,
+    AppLayerParserState, AppProto, HttpRangeContainerBlock, SCAppLayerForceProtocolChange,
     SCAppLayerParserConfParserEnabled, SCAppLayerParserRegisterLogger,
-    SCAppLayerProtoDetectConfProtoDetectionEnabled,
+    SCAppLayerProtoDetectConfProtoDetectionEnabled, SCFileFlowFlagsToFlags,
+    SCHTTP2MimicHttp1Request,
 };
 
 static mut ALPROTO_HTTP2: AppProto = ALPROTO_UNKNOWN;
@@ -69,7 +70,7 @@ pub enum HTTP2ConnectionState {
 
 const HTTP2_FRAME_HEADER_LEN: usize = 9;
 const HTTP2_MAGIC_LEN: usize = 24;
-const HTTP2_FRAME_GOAWAY_LEN: usize = 4;
+const HTTP2_FRAME_GOAWAY_LEN: usize = 8;
 const HTTP2_FRAME_RSTSTREAM_LEN: usize = 4;
 const HTTP2_FRAME_PRIORITY_LEN: usize = 5;
 const HTTP2_FRAME_WINDOWUPDATE_LEN: usize = 4;
@@ -218,10 +219,10 @@ impl HTTP2Transaction {
 
     pub fn free(&mut self) {
         if !self.file_range.is_null() {
-            if let Some(c) = unsafe { SC } {
-                if let Some(sfcm) = unsafe { SURICATA_HTTP2_FILE_CONFIG } {
-                    //TODO get a file container instead of NULL
-                    (c.HTPFileCloseHandleRange)(
+            if let Some(sfcm) = unsafe { SURICATA_HTTP2_FILE_CONFIG } {
+                //TODO get a file container instead of NULL
+                unsafe {
+                    SCHTPFileCloseHandleRange(
                         sfcm.files_sbcfg,
                         std::ptr::null_mut(),
                         0,
@@ -229,9 +230,9 @@ impl HTTP2Transaction {
                         std::ptr::null_mut(),
                         0,
                     );
-                    (c.HttpRangeFreeBlock)(self.file_range);
-                    self.file_range = std::ptr::null_mut();
+                    SCHttpRangeFreeBlock(self.file_range);
                 }
+                self.file_range = std::ptr::null_mut();
             }
         }
     }
@@ -299,8 +300,8 @@ impl HTTP2Transaction {
     }
 
     pub fn update_file_flags(&mut self, flow_file_flags: u16) {
-        self.ft_ts.file_flags = unsafe { FileFlowFlagsToFlags(flow_file_flags, STREAM_TOSERVER) };
-        self.ft_tc.file_flags = unsafe { FileFlowFlagsToFlags(flow_file_flags, STREAM_TOCLIENT) };
+        self.ft_ts.file_flags = unsafe { SCFileFlowFlagsToFlags(flow_file_flags, STREAM_TOSERVER) };
+        self.ft_tc.file_flags = unsafe { SCFileFlowFlagsToFlags(flow_file_flags, STREAM_TOCLIENT) };
     }
 
     fn decompress<'a>(
@@ -615,9 +616,9 @@ impl HTTP2State {
         // but we need state's file container cf https://redmine.openinfosecfoundation.org/issues/4444
         for tx in &mut self.transactions {
             if !tx.file_range.is_null() {
-                if let Some(c) = unsafe { SC } {
-                    if let Some(sfcm) = unsafe { SURICATA_HTTP2_FILE_CONFIG } {
-                        (c.HTPFileCloseHandleRange)(
+                if let Some(sfcm) = unsafe { SURICATA_HTTP2_FILE_CONFIG } {
+                    unsafe {
+                        SCHTPFileCloseHandleRange(
                             sfcm.files_sbcfg,
                             &mut tx.ft_tc.file,
                             0,
@@ -625,9 +626,9 @@ impl HTTP2State {
                             std::ptr::null_mut(),
                             0,
                         );
-                        (c.HttpRangeFreeBlock)(tx.file_range);
-                        tx.file_range = std::ptr::null_mut();
+                        SCHttpRangeFreeBlock(tx.file_range);
                     }
+                    tx.file_range = std::ptr::null_mut();
                 }
             }
         }
@@ -656,9 +657,9 @@ impl HTTP2State {
                 // this should be in HTTP2Transaction::free
                 // but we need state's file container cf https://redmine.openinfosecfoundation.org/issues/4444
                 if !tx.file_range.is_null() {
-                    if let Some(c) = unsafe { SC } {
-                        if let Some(sfcm) = unsafe { SURICATA_HTTP2_FILE_CONFIG } {
-                            (c.HTPFileCloseHandleRange)(
+                    if let Some(sfcm) = unsafe { SURICATA_HTTP2_FILE_CONFIG } {
+                        unsafe {
+                            SCHTPFileCloseHandleRange(
                                 sfcm.files_sbcfg,
                                 &mut tx.ft_tc.file,
                                 0,
@@ -666,9 +667,9 @@ impl HTTP2State {
                                 std::ptr::null_mut(),
                                 0,
                             );
-                            (c.HttpRangeFreeBlock)(tx.file_range);
-                            tx.file_range = std::ptr::null_mut();
+                            SCHttpRangeFreeBlock(tx.file_range);
                         }
+                        tx.file_range = std::ptr::null_mut();
                     }
                 }
                 break;
@@ -1431,13 +1432,6 @@ unsafe extern "C" fn http2_probing_parser_tc(
     return ALPROTO_UNKNOWN;
 }
 
-// Extern functions operating on HTTP2.
-extern "C" {
-    pub fn HTTP2MimicHttp1Request(
-        orig_state: *mut std::os::raw::c_void, new_state: *mut std::os::raw::c_void,
-    );
-}
-
 // Suppress the unsafe warning here as creating a state for an app-layer
 // is typically not unsafe.
 #[allow(clippy::not_unsafe_ptr_arg_deref)]
@@ -1450,7 +1444,7 @@ extern "C" fn http2_state_new(
     if !orig_state.is_null() {
         //we could check ALPROTO_HTTP1 == orig_proto
         unsafe {
-            HTTP2MimicHttp1Request(orig_state, r);
+            SCHTTP2MimicHttp1Request(orig_state, r);
         }
     }
     return r;

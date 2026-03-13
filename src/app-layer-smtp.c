@@ -359,18 +359,19 @@ static void SMTPConfigure(void) {
 
             TAILQ_FOREACH (scheme, &extract_urls_schemes->head, next) {
                 size_t scheme_len = strlen(scheme->val);
-                if (scheme_len > UINT16_MAX - SCHEME_SUFFIX_LEN) {
-                    FatalError("Too long value for extract-urls-schemes");
+                if (scheme_len > UINT8_MAX - SCHEME_SUFFIX_LEN) {
+                    FatalError("extract-urls-schemes entry '%s' is too long", scheme->val);
                 }
                 if (scheme->val[scheme_len - 1] != '/') {
                     scheme_len += SCHEME_SUFFIX_LEN;
-                    char *new_val = SCMalloc(scheme_len + 1);
-                    if (unlikely(new_val == NULL)) {
-                        FatalError("SCMalloc failure.");
-                    }
-                    int r = snprintf(new_val, scheme_len + 1, "%s://", scheme->val);
+                    char tmp[256];
+                    int r = snprintf(tmp, sizeof(tmp), "%s://", scheme->val);
                     if (r != (int)scheme_len) {
                         FatalError("snprintf failure for SMTP url extraction scheme.");
+                    }
+                    char *new_val = SCStrdup(tmp);
+                    if (unlikely(new_val == NULL)) {
+                        FatalError("extract-urls-schemes entry SCStrdup failure.");
                     }
                     SCFree(scheme->val);
                     scheme->val = new_val;
@@ -391,9 +392,16 @@ static void SMTPConfigure(void) {
             SCMimeSmtpConfigLogUrlScheme(val);
         }
 
-        ret = SCConfGetChildValueBool(config, "body-md5", &val);
-        if (ret) {
-            SCMimeSmtpConfigBodyMd5(val);
+        // default (if value is absent) is auto : do not set anything
+        const char *strval;
+        if (SCConfGetChildValue(config, "body-md5", &strval) == 1) {
+            if (SCConfValIsFalse(strval)) {
+                SCMimeSmtpConfigBodyMd5(false);
+            } else if (SCConfValIsTrue(strval)) {
+                SCMimeSmtpConfigBodyMd5(true);
+            } else if (strcmp(strval, "auto") != 0) {
+                SCLogWarning("Unknown value for body-md5: %s", strval);
+            }
         }
     }
 
@@ -461,7 +469,7 @@ static void SMTPSetEvent(SMTPState *s, uint8_t e)
     SCLogDebug("setting event %u", e);
 
     if (s->curr_tx != NULL) {
-        AppLayerDecoderEventsSetEventRaw(&s->curr_tx->tx_data.events, e);
+        SCAppLayerDecoderEventsSetEventRaw(&s->curr_tx->tx_data.events, e);
         //        s->events++;
         return;
     }
@@ -805,7 +813,7 @@ static int SMTPProcessCommandDATA(
                         depth = (uint32_t)(smtp_config.content_inspect_min_size +
                                            (state->toserver_data_count -
                                                    state->toserver_last_data_stamp));
-                        AppLayerParserTriggerRawStreamInspection(f, STREAM_TOSERVER);
+                        SCAppLayerParserTriggerRawStreamInspection(f, STREAM_TOSERVER);
                         SCLogDebug(
                                 "StreamTcpReassemblySetMinInspectDepth STREAM_TOSERVER %u", depth);
                         StreamTcpReassemblySetMinInspectDepth(f->protoctx, STREAM_TOSERVER, depth);
@@ -833,7 +841,7 @@ static int SMTPProcessCommandDATA(
                     }
                     depth = (uint32_t)(state->toserver_data_count -
                                        state->toserver_last_data_stamp);
-                    AppLayerParserTriggerRawStreamInspection(f, STREAM_TOSERVER);
+                    SCAppLayerParserTriggerRawStreamInspection(f, STREAM_TOSERVER);
                     SCLogDebug("StreamTcpReassemblySetMinInspectDepth STREAM_TOSERVER %u", depth);
                     StreamTcpReassemblySetMinInspectDepth(f->protoctx, STREAM_TOSERVER, depth);
             }
@@ -977,7 +985,7 @@ static int SMTPProcessReply(
         state->cmds_cnt = 0;
         state->cmds_idx = 0;
     }
-    AppLayerParserTriggerRawStreamInspection(f, STREAM_TOCLIENT);
+    SCAppLayerParserTriggerRawStreamInspection(f, STREAM_TOCLIENT);
 
     return 0;
 }
@@ -1179,7 +1187,7 @@ static int SMTPProcessRequest(
      * STARTTLS and DATA */
     if (!(state->parser_state & SMTP_PARSER_STATE_COMMAND_DATA_MODE)) {
         int r = 0;
-        AppLayerParserTriggerRawStreamInspection(f, STREAM_TOSERVER);
+        SCAppLayerParserTriggerRawStreamInspection(f, STREAM_TOSERVER);
 
         if (line->len >= 8 && SCMemcmpLowercase("starttls", line->buf, 8) == 0) {
             state->current_command = SMTP_COMMAND_STARTTLS;
@@ -1628,9 +1636,8 @@ static void SMTPSetMpmState(void)
     for (i = 0; i < sizeof(smtp_reply_map)/sizeof(SCEnumCharMap) - 1; i++) {
         SCEnumCharMap *map = &smtp_reply_map[i];
         /* The third argument is 3, because reply code is always 3 bytes. */
-        MpmAddPatternCI(smtp_mpm_ctx, (uint8_t *)map->enum_name, 3,
-                        0 /* defunct */, 0 /* defunct */,
-                        i /* pattern id */, i /* rule id */ , 0 /* no flags */);
+        SCMpmAddPatternCI(smtp_mpm_ctx, (uint8_t *)map->enum_name, 3, 0 /* defunct */,
+                0 /* defunct */, i /* pattern id */, i /* rule id */, 0 /* no flags */);
     }
 
     mpm_table[SMTP_MPM].Prepare(NULL, smtp_mpm_ctx);
@@ -2089,10 +2096,10 @@ static int SMTPParserTest01(void)
 
     result = 1;
 end:
+    FLOW_DESTROY(&f);
     if (alp_tctx != NULL)
         AppLayerParserThreadCtxFree(alp_tctx);
     StreamTcpFreeConfig(true);
-    FLOW_DESTROY(&f);
     return result;
 }
 
@@ -3620,17 +3627,14 @@ static int SMTPParserTest12(void)
     result = 1;
 
 end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
-
-    DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
-    DetectEngineCtxFree(de_ctx);
-
+    UTHFreePackets(&p, 1);
+    FLOW_DESTROY(&f);
     if (alp_tctx != NULL)
         AppLayerParserThreadCtxFree(alp_tctx);
+    DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
+    DetectEngineCtxFree(de_ctx);
     StreamTcpFreeConfig(true);
-    FLOW_DESTROY(&f);
-    UTHFreePackets(&p, 1);
+    StatsThreadCleanup(&th_v);
     return result;
 }
 
@@ -3770,19 +3774,15 @@ static int SMTPParserTest13(void)
     }
 
     result = 1;
-
 end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
-
-    DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
-    DetectEngineCtxFree(de_ctx);
-
+    UTHFreePackets(&p, 1);
+    FLOW_DESTROY(&f);
     if (alp_tctx != NULL)
         AppLayerParserThreadCtxFree(alp_tctx);
+    DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
+    DetectEngineCtxFree(de_ctx);
     StreamTcpFreeConfig(true);
-    FLOW_DESTROY(&f);
-    UTHFreePackets(&p, 1);
+    StatsThreadCleanup(&th_v);
     return result;
 }
 
@@ -4234,10 +4234,10 @@ static int SMTPParserTest14(void)
 
     result = 1;
 end:
+    FLOW_DESTROY(&f);
     if (alp_tctx != NULL)
         AppLayerParserThreadCtxFree(alp_tctx);
     StreamTcpFreeConfig(true);
-    FLOW_DESTROY(&f);
     return result;
 }
 #endif /* UNITTESTS */

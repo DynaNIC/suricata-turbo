@@ -112,6 +112,7 @@
 #include "decode-nsh.h"
 #include "decode-pppoe.h"
 #include "decode-raw.h"
+#include "decode-etag.h"
 #include "decode-vntag.h"
 #include "decode-vxlan.h"
 #include "decode-pppoe.h"
@@ -152,6 +153,7 @@ static void RegisterUnittests(void)
     DecodeCHDLCRegisterTests();
     DecodePPPRegisterTests();
     DecodeVLANRegisterTests();
+    DecodeETagRegisterTests();
     DecodeVNTagRegisterTests();
     DecodeGeneveRegisterTests();
     DecodeVXLANRegisterTests();
@@ -254,6 +256,11 @@ void RunUnittests(int list_unittests, const char *regex_arg)
 
     TagInitCtx();
 
+    /* test and initialize the unit testing subsystem */
+    if (regex_arg == NULL) {
+        regex_arg = ".*";
+        UtRunSelftest(regex_arg); /* inits and cleans up again */
+    }
     UtInitialize();
 
     RegisterAllModules();
@@ -261,11 +268,6 @@ void RunUnittests(int list_unittests, const char *regex_arg)
     HostBitInitCtx();
 
     StorageFinalize();
-    /* test and initialize the unit testing subsystem */
-    if (regex_arg == NULL){
-        regex_arg = ".*";
-        UtRunSelftest(regex_arg); /* inits and cleans up again */
-    }
 
     AppLayerHtpEnableRequestBodyCallback();
     AppLayerHtpNeedFileInspection();

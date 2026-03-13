@@ -1,4 +1,4 @@
-/* Copyright (C) 2018-2022 Open Information Security Foundation
+/* Copyright (C) 2018-2025 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -35,7 +35,7 @@
 /* Create a filestore specific PATH_MAX that is less than the system
  * PATH_MAX to prevent newer gcc truncation warnings with snprint. */
 #define SHA256_STRING_LEN    (SC_SHA256_LEN * 2)
-#define LEAF_DIR_MAX_LEN 4
+#define LEAF_DIR_MAX_LEN     4
 #define FILESTORE_PREFIX_MAX (PATH_MAX - SHA256_STRING_LEN - LEAF_DIR_MAX_LEN)
 
 /* The default log directory, relative to the default log
@@ -104,8 +104,7 @@ static uint32_t FileGetMaxOpenFiles(void)
  * \param src_filename Filename to use as timestamp source.
  * \param filename Filename to apply timestamps to.
  */
-static void OutputFilestoreUpdateFileTime(const char *src_filename,
-        const char *filename)
+static void OutputFilestoreUpdateFileTime(const char *src_filename, const char *filename)
 {
     struct stat sb;
     if (stat(src_filename, &sb) != 0) {
@@ -117,8 +116,7 @@ static void OutputFilestoreUpdateFileTime(const char *src_filename,
         .modtime = sb.st_mtime,
     };
     if (utime(filename, &utimbuf) != 0) {
-        SCLogDebug("Failed to update file timestamps: %s: %s", filename,
-                strerror(errno));
+        SCLogDebug("Failed to update file timestamps: %s: %s", filename, strerror(errno));
     }
 }
 
@@ -129,29 +127,37 @@ static void OutputFilestoreFinalizeFiles(ThreadVars *tv, const OutputFilestoreLo
     /* Stringify the SHA256 which will be used in the final
      * filename. */
     char sha256string[(SC_SHA256_LEN * 2) + 1];
-    PrintHexString(sha256string, sizeof(sha256string), ff->sha256,
-            sizeof(ff->sha256));
+    PrintHexString(sha256string, sizeof(sha256string), ff->sha256, sizeof(ff->sha256));
 
+    /* construct tmp file path */
     char tmp_filename[PATH_MAX] = "";
-    snprintf(tmp_filename, sizeof(tmp_filename), "%s/file.%u", ctx->tmpdir,
-            ff->file_store_id);
+    char tmp_filepath[PATH_MAX] = "";
+    snprintf(tmp_filename, sizeof(tmp_filename), "file.%u", ff->file_store_id);
+    if (PathMerge(tmp_filepath, sizeof(tmp_filepath), ctx->tmpdir, tmp_filename) < 0)
+        return;
 
+    /* construct final path */
+    char final_sha_short[3];
+    snprintf(final_sha_short, sizeof(final_sha_short), "%c%c", sha256string[0], sha256string[1]);
+    char final_sha_portion[PATH_MAX];
+    if (PathMerge(final_sha_portion, sizeof(final_sha_portion), final_sha_short, sha256string) < 0)
+        return;
     char final_filename[PATH_MAX] = "";
-    snprintf(final_filename, sizeof(final_filename), "%s/%c%c/%s",
-            ctx->prefix, sha256string[0], sha256string[1], sha256string);
+    if (PathMerge(final_filename, sizeof(final_filename), ctx->prefix, final_sha_portion) < 0)
+        return;
 
     if (SCPathExists(final_filename)) {
-        OutputFilestoreUpdateFileTime(tmp_filename, final_filename);
-        if (unlink(tmp_filename) != 0) {
+        OutputFilestoreUpdateFileTime(tmp_filepath, final_filename);
+        if (unlink(tmp_filepath) != 0) {
             StatsIncr(tv, oft->fs_error_counter);
-            WARN_ONCE(WOT_UNLINK, "Failed to remove temporary file %s: %s", tmp_filename,
+            WARN_ONCE(WOT_UNLINK, "Failed to remove temporary file %s: %s", tmp_filepath,
                     strerror(errno));
         }
-    } else if (rename(tmp_filename, final_filename) != 0) {
+    } else if (rename(tmp_filepath, final_filename) != 0) {
         StatsIncr(tv, oft->fs_error_counter);
-        WARN_ONCE(WOT_RENAME, "Failed to rename %s to %s: %s", tmp_filename, final_filename,
+        WARN_ONCE(WOT_RENAME, "Failed to rename %s to %s: %s", tmp_filepath, final_filename,
                 strerror(errno));
-        if (unlink(tmp_filename) != 0) {
+        if (unlink(tmp_filepath) != 0) {
             /* Just increment, don't log as has_fs_errors would
              * already be set above. */
             StatsIncr(tv, oft->fs_error_counter);
@@ -160,24 +166,28 @@ static void OutputFilestoreFinalizeFiles(ThreadVars *tv, const OutputFilestoreLo
     }
 
     if (ctx->fileinfo) {
-        char js_metadata_filename[PATH_MAX];
-        if (snprintf(js_metadata_filename, sizeof(js_metadata_filename), "%s.%" PRIuMAX ".%u.json",
-                    final_filename, (uintmax_t)SCTIME_SECS(p->ts),
-                    ff->file_store_id) == (int)sizeof(js_metadata_filename)) {
+        char js_metadata_filename_suffix[PATH_MAX];
+        if (snprintf(js_metadata_filename_suffix, sizeof(js_metadata_filename_suffix),
+                    ".%" PRIuMAX ".%u.json", (uintmax_t)SCTIME_SECS(p->ts),
+                    ff->file_store_id) == (int)sizeof(js_metadata_filename_suffix)) {
             WARN_ONCE(WOT_SNPRINTF, "Failed to write file info record. Output filename truncated.");
-        } else {
-            SCJsonBuilder *js_fileinfo =
-                    JsonBuildFileInfoRecord(p, ff, tx, tx_id, true, dir, ctx->xff_cfg, NULL);
-            if (likely(js_fileinfo != NULL)) {
-                SCJbClose(js_fileinfo);
-                FILE *out = fopen(js_metadata_filename, "w");
-                if (out != NULL) {
-                    size_t js_len = SCJbLen(js_fileinfo);
-                    fwrite(SCJbPtr(js_fileinfo), js_len, 1, out);
-                    fclose(out);
-                }
-                SCJbFree(js_fileinfo);
+            return;
+        }
+        char js_metadata_filename[PATH_MAX];
+        strlcpy(js_metadata_filename, final_filename, sizeof(js_metadata_filename));
+        strlcat(js_metadata_filename, js_metadata_filename_suffix, sizeof(js_metadata_filename));
+
+        SCJsonBuilder *js_fileinfo =
+                JsonBuildFileInfoRecord(p, ff, tx, tx_id, true, dir, ctx->xff_cfg, NULL);
+        if (likely(js_fileinfo != NULL)) {
+            SCJbClose(js_fileinfo);
+            FILE *out = fopen(js_metadata_filename, "w");
+            if (out != NULL) {
+                size_t js_len = SCJbLen(js_fileinfo);
+                fwrite(SCJbPtr(js_fileinfo), js_len, 1, out);
+                fclose(out);
             }
+            SCJbFree(js_fileinfo);
         }
     }
 }
@@ -195,9 +205,13 @@ static int OutputFilestoreLogger(ThreadVars *tv, void *thread_data, const Packet
     SCLogDebug("ff %p, data %p, data_len %u", ff, data, data_len);
 
     if (flags & OUTPUT_FILEDATA_FLAG_OPEN) {
-        snprintf(filename, sizeof(filename), "%s/file.%u", ctx->tmpdir, ff->file_store_id);
-        file_fd = open(filename, O_CREAT | O_TRUNC | O_NOFOLLOW | O_WRONLY,
-                0644);
+        /* construct tmp file path */
+        char tmp_filename[PATH_MAX] = "";
+        snprintf(tmp_filename, sizeof(tmp_filename), "file.%u", ff->file_store_id);
+        if (PathMerge(filename, sizeof(filename), ctx->tmpdir, tmp_filename) < 0)
+            return -1;
+
+        file_fd = open(filename, O_CREAT | O_TRUNC | O_NOFOLLOW | O_WRONLY, 0644);
         if (file_fd == -1) {
             StatsIncr(tv, aft->fs_error_counter);
             SCLogWarning("Filestore (v2) failed to create %s: %s", filename, strerror(errno));
@@ -213,10 +227,14 @@ static int OutputFilestoreLogger(ThreadVars *tv, void *thread_data, const Packet
             }
             ff->fd = -1;
         }
-    /* we can get called with a NULL ffd when we need to close */
+        /* we can get called with NULL data when we need to close */
     } else if (data != NULL) {
         if (ff->fd == -1) {
-            snprintf(filename, sizeof(filename), "%s/file.%u", ctx->tmpdir, ff->file_store_id);
+            /* construct tmp file path */
+            char tmp_filename[PATH_MAX] = "";
+            snprintf(tmp_filename, sizeof(tmp_filename), "file.%u", ff->file_store_id);
+            if (PathMerge(filename, sizeof(filename), ctx->tmpdir, tmp_filename) < 0)
+                return -1;
             file_fd = open(filename, O_APPEND | O_NOFOLLOW | O_WRONLY);
             if (file_fd == -1) {
                 StatsIncr(tv, aft->fs_error_counter);
@@ -232,7 +250,10 @@ static int OutputFilestoreLogger(ThreadVars *tv, void *thread_data, const Packet
     if (file_fd != -1) {
         ssize_t r = write(file_fd, (const void *)data, (size_t)data_len);
         if (r == -1) {
-            snprintf(filename, sizeof(filename), "%s/file.%u", ctx->tmpdir, ff->file_store_id);
+            /* construct tmp file path */
+            char tmp_filename[PATH_MAX] = "";
+            snprintf(tmp_filename, sizeof(tmp_filename), "file.%u", ff->file_store_id);
+            (void)PathMerge(filename, sizeof(filename), ctx->tmpdir, tmp_filename);
             StatsIncr(tv, aft->fs_error_counter);
             WARN_ONCE(WOT_WRITE, "Filestore (v2) failed to write to %s: %s", filename,
                     strerror(errno));
@@ -258,8 +279,7 @@ static int OutputFilestoreLogger(ThreadVars *tv, void *thread_data, const Packet
     return 0;
 }
 
-static TmEcode OutputFilestoreLogThreadInit(ThreadVars *t, const void *initdata,
-        void **data)
+static TmEcode OutputFilestoreLogThreadInit(ThreadVars *t, const void *initdata, void **data)
 {
     OutputFilestoreLogThread *aft = SCCalloc(1, sizeof(OutputFilestoreLogThread));
     if (unlikely(aft == NULL))
@@ -274,8 +294,7 @@ static TmEcode OutputFilestoreLogThreadInit(ThreadVars *t, const void *initdata,
     OutputFilestoreCtx *ctx = ((OutputCtx *)initdata)->data;
     aft->ctx = ctx;
 
-    aft->counter_max_hits =
-        StatsRegisterCounter("file_store.open_files_max_hit", t);
+    aft->counter_max_hits = StatsRegisterCounter("file_store.open_files_max_hit", t);
 
     /* File system type errors (open, write, rename) will only be
      * logged once. But this stat will be incremented for every
@@ -310,7 +329,7 @@ static void OutputFilestoreLogDeInitCtx(OutputCtx *output_ctx)
     SCFree(output_ctx);
 }
 
-static void GetLogDirectory(const SCConfNode *conf, char *out, size_t out_size)
+static int GetLogDirectory(const SCConfNode *conf, char *out, size_t out_size)
 {
     const char *log_base_dir = SCConfNodeLookupChildValue(conf, "dir");
     if (log_base_dir == NULL) {
@@ -318,11 +337,15 @@ static void GetLogDirectory(const SCConfNode *conf, char *out, size_t out_size)
         log_base_dir = default_log_dir;
     }
     if (PathIsAbsolute(log_base_dir)) {
-        strlcpy(out, log_base_dir, out_size);
+        size_t r = strlcpy(out, log_base_dir, out_size);
+        if (r >= out_size)
+            return -1;
     } else {
         const char *default_log_prefix = SCConfigGetLogDirectory();
-        snprintf(out, out_size, "%s/%s", default_log_prefix, log_base_dir);
+        if (PathMerge(out, out_size, default_log_prefix, log_base_dir) < 0)
+            return -1;
     }
+    return 0;
 }
 
 static bool InitFilestoreDirectory(const char *dir)
@@ -338,9 +361,10 @@ static bool InitFilestoreDirectory(const char *dir)
     }
 
     for (int i = 0; i <= dir_count; i++) {
+        char hex[3];
+        snprintf(hex, sizeof(hex), "%02x", i);
         char leaf[PATH_MAX];
-        int n = snprintf(leaf, sizeof(leaf), "%s/%02x", dir, i);
-        if (n < 0 || n >= PATH_MAX) {
+        if (PathMerge(leaf, sizeof(leaf), dir, hex) < 0) {
             SCLogError("Filestore (v2) failed to create leaf directory: "
                        "path too long");
             return false;
@@ -357,8 +381,7 @@ static bool InitFilestoreDirectory(const char *dir)
 
     /* Make sure the tmp directory exists. */
     char tmpdir[PATH_MAX];
-    int n = snprintf(tmpdir, sizeof(tmpdir), "%s/tmp", dir);
-    if (n < 0 || n >= PATH_MAX) {
+    if (PathMerge(tmpdir, sizeof(tmpdir), dir, "tmp") < 0) {
         SCLogError("Filestore (v2) failed to create tmp directory: path too long");
         return false;
     }
@@ -394,7 +417,10 @@ static OutputInitResult OutputFilestoreLogInitCtx(SCConfNode *conf)
     }
 
     char log_directory[PATH_MAX] = "";
-    GetLogDirectory(conf, log_directory, sizeof(log_directory));
+    if (GetLogDirectory(conf, log_directory, sizeof(log_directory)) < 0) {
+        SCLogError("File-store output path too long.");
+        return result;
+    }
     if (!InitFilestoreDirectory(log_directory)) {
         return result;
     }
@@ -405,9 +431,8 @@ static OutputInitResult OutputFilestoreLogInitCtx(SCConfNode *conf)
     }
 
     strlcpy(ctx->prefix, log_directory, sizeof(ctx->prefix));
-    int written = snprintf(ctx->tmpdir, sizeof(ctx->tmpdir) - 1, "%s/tmp",
-            log_directory);
-    if (written == sizeof(ctx->tmpdir)) {
+
+    if (PathMerge(ctx->tmpdir, sizeof(ctx->tmpdir), log_directory, "tmp") < 0) {
         SCLogError("File-store output directory overflow.");
         SCFree(ctx);
         return result;
@@ -456,8 +481,7 @@ static OutputInitResult OutputFilestoreLogInitCtx(SCConfNode *conf)
     const char *stream_depth_str = SCConfNodeLookupChildValue(conf, "stream-depth");
     if (stream_depth_str != NULL && strcmp(stream_depth_str, "no")) {
         uint32_t stream_depth = 0;
-        if (ParseSizeStringU32(stream_depth_str,
-                               &stream_depth) < 0) {
+        if (ParseSizeStringU32(stream_depth_str, &stream_depth) < 0) {
             SCLogError("Error parsing "
                        "file-store.stream-depth "
                        "from conf file - %s.  Killing engine",
@@ -479,8 +503,7 @@ static OutputInitResult OutputFilestoreLogInitCtx(SCConfNode *conf)
     const char *file_count_str = SCConfNodeLookupChildValue(conf, "max-open-files");
     if (file_count_str != NULL) {
         uint32_t file_count = 0;
-        if (ParseSizeStringU32(file_count_str,
-                               &file_count) < 0) {
+        if (ParseSizeStringU32(file_count_str, &file_count) < 0) {
             SCLogError("Error parsing "
                        "file-store.max-open-files "
                        "from conf file - %s.  Killing engine",
@@ -490,7 +513,8 @@ static OutputInitResult OutputFilestoreLogInitCtx(SCConfNode *conf)
             if (file_count != 0) {
                 FileSetMaxOpenFiles(file_count);
                 SCLogConfig("Filestore (v2) will keep a max of %d "
-                        "simultaneously open files", file_count);
+                            "simultaneously open files",
+                        file_count);
             }
         }
     }

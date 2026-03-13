@@ -379,6 +379,8 @@ void DetectContentFree(DetectEngineCtx *de_ctx, void *ptr)
     if (cd == NULL)
         SCReturn;
 
+    if (cd->replace)
+        SCFree(cd->replace);
     SpmDestroyCtx(cd->spm_ctx);
 
     SCFree(cd);
@@ -412,6 +414,8 @@ void SigParseRequiredContentSize(
 {
     int max_offset = 0, total_len = 0;
     bool first = true;
+    // define it first, and override it unless in DETECT_CONTENT_NEGATED edge case
+    *offset = 0;
     for (; sm != NULL; sm = sm->next) {
         if (sm->type != DETECT_CONTENT || sm->ctx == NULL) {
             continue;
@@ -941,30 +945,17 @@ static int g_dce_stub_data_buffer_id = 0;
  */
 static int DetectContentParseTest01 (void)
 {
-    int result = 1;
-    DetectContentData *cd = NULL;
     const char *teststring = "abc\\:def";
     const char *teststringparsed = "abc:def";
-
     uint8_t spm_matcher = SinglePatternMatchDefaultMatcher();
     SpmGlobalThreadCtx *spm_global_thread_ctx = SpmInitGlobalThreadCtx(spm_matcher);
     FAIL_IF(spm_global_thread_ctx == NULL);
-
-    cd = DetectContentParse(spm_global_thread_ctx, teststring);
-    if (cd != NULL) {
-        if (memcmp(cd->content, teststringparsed, strlen(teststringparsed)) != 0) {
-            SCLogDebug("expected %s got ", teststringparsed);
-            PrintRawUriFp(stdout,cd->content,cd->content_len);
-            SCLogDebug(": ");
-            result = 0;
-            DetectContentFree(NULL, cd);
-        }
-    } else {
-        SCLogDebug("expected %s got NULL: ", teststringparsed);
-        result = 0;
-    }
+    DetectContentData *cd = DetectContentParse(spm_global_thread_ctx, teststring);
+    FAIL_IF_NULL(cd);
+    FAIL_IF(memcmp(cd->content, teststringparsed, strlen(teststringparsed)) != 0);
+    DetectContentFree(NULL, cd);
     SpmDestroyGlobalThreadCtx(spm_global_thread_ctx);
-    return result;
+    PASS;
 }
 
 /**
@@ -972,30 +963,17 @@ static int DetectContentParseTest01 (void)
  */
 static int DetectContentParseTest02 (void)
 {
-    int result = 1;
-    DetectContentData *cd = NULL;
     const char *teststring = "abc\\;def";
     const char *teststringparsed = "abc;def";
-
     uint8_t spm_matcher = SinglePatternMatchDefaultMatcher();
     SpmGlobalThreadCtx *spm_global_thread_ctx = SpmInitGlobalThreadCtx(spm_matcher);
     FAIL_IF(spm_global_thread_ctx == NULL);
-
-    cd = DetectContentParse(spm_global_thread_ctx, teststring);
-    if (cd != NULL) {
-        if (memcmp(cd->content, teststringparsed, strlen(teststringparsed)) != 0) {
-            SCLogDebug("expected %s got ", teststringparsed);
-            PrintRawUriFp(stdout,cd->content,cd->content_len);
-            SCLogDebug(": ");
-            result = 0;
-            DetectContentFree(NULL, cd);
-        }
-    } else {
-        SCLogDebug("expected %s got NULL: ", teststringparsed);
-        result = 0;
-    }
+    DetectContentData *cd = DetectContentParse(spm_global_thread_ctx, teststring);
+    FAIL_IF_NULL(cd);
+    FAIL_IF(memcmp(cd->content, teststringparsed, strlen(teststringparsed)) != 0);
+    DetectContentFree(NULL, cd);
     SpmDestroyGlobalThreadCtx(spm_global_thread_ctx);
-    return result;
+    PASS;
 }
 
 /**
@@ -1003,30 +981,17 @@ static int DetectContentParseTest02 (void)
  */
 static int DetectContentParseTest03 (void)
 {
-    int result = 1;
-    DetectContentData *cd = NULL;
     const char *teststring = "abc\\\"def";
     const char *teststringparsed = "abc\"def";
-
     uint8_t spm_matcher = SinglePatternMatchDefaultMatcher();
     SpmGlobalThreadCtx *spm_global_thread_ctx = SpmInitGlobalThreadCtx(spm_matcher);
     FAIL_IF(spm_global_thread_ctx == NULL);
-
-    cd = DetectContentParse(spm_global_thread_ctx, teststring);
-    if (cd != NULL) {
-        if (memcmp(cd->content, teststringparsed, strlen(teststringparsed)) != 0) {
-            SCLogDebug("expected %s got ", teststringparsed);
-            PrintRawUriFp(stdout,cd->content,cd->content_len);
-            SCLogDebug(": ");
-            result = 0;
-            DetectContentFree(NULL, cd);
-        }
-    } else {
-        SCLogDebug("expected %s got NULL: ", teststringparsed);
-        result = 0;
-    }
+    DetectContentData *cd = DetectContentParse(spm_global_thread_ctx, teststring);
+    FAIL_IF_NULL(cd);
+    FAIL_IF(memcmp(cd->content, teststringparsed, strlen(teststringparsed)) != 0);
+    DetectContentFree(NULL, cd);
     SpmDestroyGlobalThreadCtx(spm_global_thread_ctx);
-    return result;
+    PASS;
 }
 
 /**
@@ -1034,31 +999,18 @@ static int DetectContentParseTest03 (void)
  */
 static int DetectContentParseTest04 (void)
 {
-    int result = 1;
-    DetectContentData *cd = NULL;
     const char *teststring = "abc\\\\def";
     const char *teststringparsed = "abc\\def";
-
     uint8_t spm_matcher = SinglePatternMatchDefaultMatcher();
     SpmGlobalThreadCtx *spm_global_thread_ctx = SpmInitGlobalThreadCtx(spm_matcher);
     FAIL_IF(spm_global_thread_ctx == NULL);
-
-    cd = DetectContentParse(spm_global_thread_ctx, teststring);
-    if (cd != NULL) {
-        uint16_t len = (cd->content_len > strlen(teststringparsed));
-        if (memcmp(cd->content, teststringparsed, len) != 0) {
-            SCLogDebug("expected %s got ", teststringparsed);
-            PrintRawUriFp(stdout,cd->content,cd->content_len);
-            SCLogDebug(": ");
-            result = 0;
-            DetectContentFree(NULL, cd);
-        }
-    } else {
-        SCLogDebug("expected %s got NULL: ", teststringparsed);
-        result = 0;
-    }
+    DetectContentData *cd = DetectContentParse(spm_global_thread_ctx, teststring);
+    FAIL_IF_NULL(cd);
+    uint16_t len = (cd->content_len > strlen(teststringparsed));
+    FAIL_IF(memcmp(cd->content, teststringparsed, len) != 0);
+    DetectContentFree(NULL, cd);
     SpmDestroyGlobalThreadCtx(spm_global_thread_ctx);
-    return result;
+    PASS;
 }
 
 /**
@@ -1066,24 +1018,15 @@ static int DetectContentParseTest04 (void)
  */
 static int DetectContentParseTest05 (void)
 {
-    int result = 1;
-    DetectContentData *cd = NULL;
     const char *teststring = "abc\\def";
-
     uint8_t spm_matcher = SinglePatternMatchDefaultMatcher();
     SpmGlobalThreadCtx *spm_global_thread_ctx = SpmInitGlobalThreadCtx(spm_matcher);
     FAIL_IF(spm_global_thread_ctx == NULL);
-
-    cd = DetectContentParse(spm_global_thread_ctx, teststring);
-    if (cd != NULL) {
-        SCLogDebug("expected NULL got ");
-        PrintRawUriFp(stdout,cd->content,cd->content_len);
-        SCLogDebug(": ");
-        result = 0;
-        DetectContentFree(NULL, cd);
-    }
+    DetectContentData *cd = DetectContentParse(spm_global_thread_ctx, teststring);
+    FAIL_IF_NOT_NULL(cd);
+    DetectContentFree(NULL, cd);
     SpmDestroyGlobalThreadCtx(spm_global_thread_ctx);
-    return result;
+    PASS;
 }
 
 /**
@@ -1091,31 +1034,19 @@ static int DetectContentParseTest05 (void)
  */
 static int DetectContentParseTest06 (void)
 {
-    int result = 1;
-    DetectContentData *cd = NULL;
     const char *teststring = "a|42|c|44|e|46|";
     const char *teststringparsed = "abcdef";
 
     uint8_t spm_matcher = SinglePatternMatchDefaultMatcher();
     SpmGlobalThreadCtx *spm_global_thread_ctx = SpmInitGlobalThreadCtx(spm_matcher);
     FAIL_IF(spm_global_thread_ctx == NULL);
-
-    cd = DetectContentParse(spm_global_thread_ctx, teststring);
-    if (cd != NULL) {
-        uint16_t len = (cd->content_len > strlen(teststringparsed));
-        if (memcmp(cd->content, teststringparsed, len) != 0) {
-            SCLogDebug("expected %s got ", teststringparsed);
-            PrintRawUriFp(stdout,cd->content,cd->content_len);
-            SCLogDebug(": ");
-            result = 0;
-            DetectContentFree(NULL, cd);
-        }
-    } else {
-        SCLogDebug("expected %s got NULL: ", teststringparsed);
-        result = 0;
-    }
+    DetectContentData *cd = DetectContentParse(spm_global_thread_ctx, teststring);
+    FAIL_IF_NULL(cd);
+    uint16_t len = (cd->content_len > strlen(teststringparsed));
+    FAIL_IF(memcmp(cd->content, teststringparsed, len) != 0);
+    DetectContentFree(NULL, cd);
     SpmDestroyGlobalThreadCtx(spm_global_thread_ctx);
-    return result;
+    PASS;
 }
 
 /**
@@ -1123,22 +1054,15 @@ static int DetectContentParseTest06 (void)
  */
 static int DetectContentParseTest07 (void)
 {
-    int result = 1;
-    DetectContentData *cd = NULL;
     const char *teststring = "";
-
     uint8_t spm_matcher = SinglePatternMatchDefaultMatcher();
     SpmGlobalThreadCtx *spm_global_thread_ctx = SpmInitGlobalThreadCtx(spm_matcher);
     FAIL_IF(spm_global_thread_ctx == NULL);
-
-    cd = DetectContentParse(spm_global_thread_ctx, teststring);
-    if (cd != NULL) {
-        SCLogDebug("expected NULL got %p: ", cd);
-        result = 0;
-        DetectContentFree(NULL, cd);
-    }
+    DetectContentData *cd = DetectContentParse(spm_global_thread_ctx, teststring);
+    FAIL_IF_NOT_NULL(cd);
+    DetectContentFree(NULL, cd);
     SpmDestroyGlobalThreadCtx(spm_global_thread_ctx);
-    return result;
+    PASS;
 }
 
 /**
@@ -1146,22 +1070,15 @@ static int DetectContentParseTest07 (void)
  */
 static int DetectContentParseTest08 (void)
 {
-    int result = 1;
-    DetectContentData *cd = NULL;
     const char *teststring = "";
-
     uint8_t spm_matcher = SinglePatternMatchDefaultMatcher();
     SpmGlobalThreadCtx *spm_global_thread_ctx = SpmInitGlobalThreadCtx(spm_matcher);
     FAIL_IF(spm_global_thread_ctx == NULL);
-
-    cd = DetectContentParse(spm_global_thread_ctx, teststring);
-    if (cd != NULL) {
-        SCLogDebug("expected NULL got %p: ", cd);
-        result = 0;
-        DetectContentFree(NULL, cd);
-    }
+    DetectContentData *cd = DetectContentParse(spm_global_thread_ctx, teststring);
+    FAIL_IF_NOT_NULL(cd);
+    DetectContentFree(NULL, cd);
     SpmDestroyGlobalThreadCtx(spm_global_thread_ctx);
-    return result;
+    PASS;
 }
 
 /**
@@ -1211,11 +1128,11 @@ static int DetectContentLongPatternMatchTest(uint8_t *raw_eth_pkt, uint16_t pkts
     SigMatchSignatures(&th_v, de_ctx, det_ctx, p);
     int result = PacketAlertCheck(p, sid);
 
+    PacketFree(p);
+    FlowShutdown();
     DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
     DetectEngineCtxFree(de_ctx);
-    PacketRecycle(p);
-    FlowShutdown();
-    SCFree(p);
+    StatsThreadCleanup(&th_v);
     return result;
 }
 
@@ -1579,11 +1496,8 @@ static int DetectContentParseTest20(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1608,11 +1522,8 @@ static int DetectContentParseTest21(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1637,11 +1548,8 @@ static int DetectContentParseTest22(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1666,11 +1574,8 @@ static int DetectContentParseTest23(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1709,10 +1614,7 @@ static int DetectContentParseTest24(void)
     result = (strncmp("boo", (char *)cd->content, cd->content_len) == 0);
 
 end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1737,11 +1639,8 @@ static int DetectContentParseTest25(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1766,11 +1665,8 @@ static int DetectContentParseTest26(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1795,11 +1691,8 @@ static int DetectContentParseTest27(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1824,11 +1717,8 @@ static int DetectContentParseTest28(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1853,11 +1743,8 @@ static int DetectContentParseTest29(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1882,11 +1769,8 @@ static int DetectContentParseTest30(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1911,11 +1795,8 @@ static int DetectContentParseTest31(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1940,11 +1821,8 @@ static int DetectContentParseTest32(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1969,11 +1847,8 @@ static int DetectContentParseTest33(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -1998,11 +1873,8 @@ static int DetectContentParseTest34(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -2027,11 +1899,8 @@ static int DetectContentParseTest35(void)
         goto end;
     }
 
- end:
-    SigGroupCleanup(de_ctx);
-    SigCleanSignatures(de_ctx);
+end:
     DetectEngineCtxFree(de_ctx);
-
     return result;
 }
 
@@ -2060,10 +1929,10 @@ static int SigTestPositiveTestContent(const char *rule, uint8_t *buf)
 
     FAIL_IF(PacketAlertCheck(p, 1) != 1);
 
+    UTHFreePackets(&p, 1);
     DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
     DetectEngineCtxFree(de_ctx);
-
-    UTHFreePackets(&p, 1);
+    StatsThreadCleanup(&th_v);
     PASS;
 }
 
@@ -2254,15 +2123,14 @@ static int SigTestNegativeTestContent(const char *rule, uint8_t *buf)
 
     result = 1;
 end:
+    UTHFreePackets(&p, 1);
     if (det_ctx != NULL) {
         DetectEngineThreadCtxDeinit(&th_v, (void *)det_ctx);
     }
     if (de_ctx != NULL) {
-        SigGroupCleanup(de_ctx);
-        SigCleanSignatures(de_ctx);
         DetectEngineCtxFree(de_ctx);
     }
-    UTHFreePackets(&p, 1);
+    StatsThreadCleanup(&th_v);
     return result;
 }
 

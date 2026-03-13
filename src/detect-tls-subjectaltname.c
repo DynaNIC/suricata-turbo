@@ -68,7 +68,12 @@ static bool TlsSubjectAltNameGetData(DetectEngineThreadCtx *det_ctx, const void 
     }
 
     *buf = (const uint8_t *)connp->cert0_sans[idx];
-    *buf_len = (uint32_t)strlen(connp->cert0_sans[idx]);
+    if (*buf) {
+        *buf_len = (uint32_t)strlen(connp->cert0_sans[idx]);
+    } else {
+        // happens if the altname had a zero character in it
+        *buf_len = 0;
+    }
     return true;
 }
 
@@ -83,7 +88,8 @@ void DetectTlsSubjectAltNameRegister(void)
     sigmatch_table[DETECT_TLS_SUBJECTALTNAME].url = "/rules/tls-keywords.html#tls-subjectaltname";
     sigmatch_table[DETECT_TLS_SUBJECTALTNAME].Setup = DetectTlsSubjectAltNameSetup;
     sigmatch_table[DETECT_TLS_SUBJECTALTNAME].flags |= SIGMATCH_NOOPT;
-    sigmatch_table[DETECT_TLS_SUBJECTALTNAME].flags |= SIGMATCH_INFO_STICKY_BUFFER;
+    sigmatch_table[DETECT_TLS_SUBJECTALTNAME].flags |=
+            SIGMATCH_INFO_STICKY_BUFFER | SIGMATCH_INFO_MULTI_BUFFER;
 
     DetectAppLayerMultiRegister("tls.subjectaltname", ALPROTO_TLS, SIG_FLAG_TOCLIENT,
             TLS_STATE_SERVER_CERT_DONE, TlsSubjectAltNameGetData, 2);

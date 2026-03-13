@@ -21,7 +21,6 @@
  * @{
  */
 
-
 /**
  * \file
  *
@@ -130,6 +129,19 @@ static int DecodePPPUncompressedProto(ThreadVars *tv, DecodeThreadVars *dtv, Pac
 
             return DecodeIPV6(tv, dtv, p, pkt + data_offset, (uint16_t)(len - data_offset));
 
+        case PPP_IPCP:
+        case PPP_IPV6CP:
+        case PPP_LCP:
+        case PPP_PAP:
+        case PPP_CHAP:
+        case PPP_CCP:
+        case PPP_LQM:
+        case PPP_CBCP:
+        case PPP_COMP_DGRAM:
+        case PPP_CDPCP:
+            /* Valid types to be in PPP but don't inspect validity. */
+            return TM_ECODE_OK;
+
         case PPP_VJ_COMP:
         case PPP_IPX:
         case PPP_OSI:
@@ -144,7 +156,6 @@ static int DecodePPPUncompressedProto(ThreadVars *tv, DecodeThreadVars *dtv, Pac
         case PPP_SNS:
         case PPP_MPLS_UCAST:
         case PPP_MPLS_MCAST:
-        case PPP_IPCP:
         case PPP_OSICP:
         case PPP_NSCP:
         case PPP_DECNETCP:
@@ -152,16 +163,8 @@ static int DecodePPPUncompressedProto(ThreadVars *tv, DecodeThreadVars *dtv, Pac
         case PPP_IPXCP:
         case PPP_STIICP:
         case PPP_VINESCP:
-        case PPP_IPV6CP:
         case PPP_MPLSCP:
-        case PPP_LCP:
-        case PPP_PAP:
-        case PPP_LQM:
-        case PPP_CHAP:
-        case PPP_CCP:
-        case PPP_CBCP:
-        case PPP_COMP_DGRAM:
-            ENGINE_SET_EVENT(p,PPP_UNSUP_PROTO);
+            ENGINE_SET_EVENT(p, PPP_UNSUP_PROTO);
             return TM_ECODE_OK;
 
         default:
@@ -231,7 +234,7 @@ int DecodePPP(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, const uint8_t *p
  *  Decode malformed ip layer PPP packet
  *  Expected test value: 1
  */
-static int DecodePPPtest01 (void)
+static int DecodePPPtest01(void)
 {
     uint8_t raw_ppp[] = { 0xff, 0x03, 0x00, 0x21, 0x45, 0xc0, 0x00 };
     Packet *p = PacketGetFromAlloc();
@@ -247,26 +250,21 @@ static int DecodePPPtest01 (void)
 
     /* Function my returns here with expected value */
 
-    if(ENGINE_ISSET_EVENT(p,PPPIPV4_PKT_TOO_SMALL))  {
-        SCFree(p);
-        return 1;
-    }
-
-    SCFree(p);
-    return 0;
+    FAIL_IF_NOT(ENGINE_ISSET_EVENT(p, PPPIPV4_PKT_TOO_SMALL));
+    PacketFree(p);
+    PASS;
 }
 
 /*  DecodePPPtest02
  *  Decode malformed ppp layer packet
  *  Expected test value: 1
  */
-static int DecodePPPtest02 (void)
+static int DecodePPPtest02(void)
 {
-    uint8_t raw_ppp[] = { 0xff, 0x03, 0x00, 0xff, 0x45, 0xc0, 0x00, 0x2c, 0x4d,
-                           0xed, 0x00, 0x00, 0xff, 0x06, 0xd5, 0x17, 0xbf, 0x01,
-                           0x0d, 0x01, 0xbf, 0x01, 0x0d, 0x03, 0xea, 0x37, 0x00,
-                           0x17, 0x6d, 0x0b, 0xba, 0xc3, 0x00, 0x00, 0x00, 0x00,
-                           0x60, 0x02, 0x10, 0x20, 0xdd, 0xe1, 0x00, 0x00 };
+    uint8_t raw_ppp[] = { 0xff, 0x03, 0x00, 0xff, 0x45, 0xc0, 0x00, 0x2c, 0x4d, 0xed, 0x00, 0x00,
+        0xff, 0x06, 0xd5, 0x17, 0xbf, 0x01, 0x0d, 0x01, 0xbf, 0x01, 0x0d, 0x03, 0xea, 0x37, 0x00,
+        0x17, 0x6d, 0x0b, 0xba, 0xc3, 0x00, 0x00, 0x00, 0x00, 0x60, 0x02, 0x10, 0x20, 0xdd, 0xe1,
+        0x00, 0x00 };
     Packet *p = PacketGetFromAlloc();
     if (unlikely(p == NULL))
         return 0;
@@ -280,13 +278,10 @@ static int DecodePPPtest02 (void)
 
     /* Function must returns here */
 
-    if(ENGINE_ISSET_EVENT(p,PPP_WRONG_TYPE))  {
-        SCFree(p);
-        return 1;
-    }
+    FAIL_IF_NOT(ENGINE_ISSET_EVENT(p, PPP_WRONG_TYPE));
 
-    SCFree(p);
-    return 0;
+    PacketFree(p);
+    PASS;
 }
 
 /** DecodePPPtest03
@@ -295,13 +290,12 @@ static int DecodePPPtest02 (void)
  *  \retval 0 Test failed
  *  \retval 1 Test succeeded
  */
-static int DecodePPPtest03 (void)
+static int DecodePPPtest03(void)
 {
-    uint8_t raw_ppp[] = { 0xff, 0x03, 0x00, 0x21, 0x45, 0xc0, 0x00, 0x2c, 0x4d,
-                           0xed, 0x00, 0x00, 0xff, 0x06, 0xd5, 0x17, 0xbf, 0x01,
-                           0x0d, 0x01, 0xbf, 0x01, 0x0d, 0x03, 0xea, 0x37, 0x00,
-                           0x17, 0x6d, 0x0b, 0xba, 0xc3, 0x00, 0x00, 0x00, 0x00,
-                           0x60, 0x02, 0x10, 0x20, 0xdd, 0xe1, 0x00, 0x00 };
+    uint8_t raw_ppp[] = { 0xff, 0x03, 0x00, 0x21, 0x45, 0xc0, 0x00, 0x2c, 0x4d, 0xed, 0x00, 0x00,
+        0xff, 0x06, 0xd5, 0x17, 0xbf, 0x01, 0x0d, 0x01, 0xbf, 0x01, 0x0d, 0x03, 0xea, 0x37, 0x00,
+        0x17, 0x6d, 0x0b, 0xba, 0xc3, 0x00, 0x00, 0x00, 0x00, 0x60, 0x02, 0x10, 0x20, 0xdd, 0xe1,
+        0x00, 0x00 };
     Packet *p = PacketGetFromAlloc();
     if (unlikely(p == NULL))
         return 0;
@@ -315,46 +309,27 @@ static int DecodePPPtest03 (void)
 
     DecodePPP(&tv, &dtv, p, raw_ppp, sizeof(raw_ppp));
 
+    FAIL_IF(ENGINE_ISSET_EVENT(p, PPP_PKT_TOO_SMALL));
+    FAIL_IF(ENGINE_ISSET_EVENT(p, PPPIPV4_PKT_TOO_SMALL));
+    FAIL_IF(ENGINE_ISSET_EVENT(p, PPP_WRONG_TYPE));
+    FAIL_IF(!(ENGINE_ISSET_EVENT(p, IPV4_TRUNC_PKT)));
+
+    PacketFree(p);
     FlowShutdown();
-
-    if(ENGINE_ISSET_EVENT(p,PPP_PKT_TOO_SMALL))  {
-        SCFree(p);
-        return 0;
-    }
-
-    if(ENGINE_ISSET_EVENT(p,PPPIPV4_PKT_TOO_SMALL))  {
-        SCFree(p);
-        return 0;
-    }
-
-    if(ENGINE_ISSET_EVENT(p,PPP_WRONG_TYPE))  {
-        SCFree(p);
-        return 0;
-    }
-
-    if (!(ENGINE_ISSET_EVENT(p,IPV4_TRUNC_PKT))) {
-        SCFree(p);
-        return 0;
-    }
-    /* Function must return here */
-
-    SCFree(p);
-    return 1;
+    PASS;
 }
-
 
 /*  DecodePPPtest04
  *  Check if ppp header is null
  *  Expected test value: 1
  */
 
-static int DecodePPPtest04 (void)
+static int DecodePPPtest04(void)
 {
-    uint8_t raw_ppp[] = { 0xff, 0x03, 0x00, 0x21, 0x45, 0xc0, 0x00, 0x2c, 0x4d,
-                           0xed, 0x00, 0x00, 0xff, 0x06, 0xd5, 0x17, 0xbf, 0x01,
-                           0x0d, 0x01, 0xbf, 0x01, 0x0d, 0x03, 0xea, 0x37, 0x00,
-                           0x17, 0x6d, 0x0b, 0xba, 0xc3, 0x00, 0x00, 0x00, 0x00,
-                           0x60, 0x02, 0x10, 0x20, 0xdd, 0xe1, 0x00, 0x00 };
+    uint8_t raw_ppp[] = { 0xff, 0x03, 0x00, 0x21, 0x45, 0xc0, 0x00, 0x2c, 0x4d, 0xed, 0x00, 0x00,
+        0xff, 0x06, 0xd5, 0x17, 0xbf, 0x01, 0x0d, 0x01, 0xbf, 0x01, 0x0d, 0x03, 0xea, 0x37, 0x00,
+        0x17, 0x6d, 0x0b, 0xba, 0xc3, 0x00, 0x00, 0x00, 0x00, 0x60, 0x02, 0x10, 0x20, 0xdd, 0xe1,
+        0x00, 0x00 };
     Packet *p = PacketGetFromAlloc();
     if (unlikely(p == NULL))
         return 0;
@@ -370,15 +345,12 @@ static int DecodePPPtest04 (void)
 
     FlowShutdown();
 
-    if (!(ENGINE_ISSET_EVENT(p,IPV4_TRUNC_PKT))) {
-        SCFree(p);
-        return 0;
-    }
+    FAIL_IF(!(ENGINE_ISSET_EVENT(p, IPV4_TRUNC_PKT)));
 
     /* Function must returns here */
 
-    SCFree(p);
-    return 1;
+    PacketFree(p);
+    PASS;
 }
 #endif /* UNITTESTS */
 

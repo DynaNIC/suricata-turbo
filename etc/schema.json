@@ -26,6 +26,7 @@
                 },
                 "metadata": {
                     "type": "object",
+                    "additionalProperties": true,
                     "properties": {
                         "affected_product": {
                             "type": "array",
@@ -309,24 +310,21 @@
                             "type": "array",
                             "items": {
                                 "type": "object",
-                                "items": {
-                                    "type": "object",
-                                    "additionalProperties": false,
-                                    "required": [
-                                        "id",
-                                        "ip",
-                                        "port"
-                                    ],
-                                    "properties": {
-                                        "id": {
-                                            "type": "string"
-                                        },
-                                        "ip": {
-                                            "type": "string"
-                                        },
-                                        "port": {
-                                            "type": "number"
-                                        }
+                                "additionalProperties": false,
+                                "required": [
+                                    "id",
+                                    "ip",
+                                    "port"
+                                ],
+                                "properties": {
+                                    "id": {
+                                        "type": "string"
+                                    },
+                                    "ip": {
+                                        "type": "string"
+                                    },
+                                    "port": {
+                                        "type": "number"
                                     }
                                 }
                             }
@@ -360,7 +358,16 @@
                         "values": {
                             "type": "array",
                             "items": {
-                                "type": "object"
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "ip": {
+                                        "type": "string"
+                                    },
+                                    "port": {
+                                        "type": "number"
+                                    }
+                                }
                             }
                         }
                     }
@@ -500,7 +507,12 @@
                     "type": "integer"
                 },
                 "lease_time": {
-                    "type": "integer"
+                    "type": "integer",
+                    "suricata": {
+                        "keywords": [
+                            "dhcp.leasetime"
+                        ]
+                    }
                 },
                 "next_server_ip": {
                     "type": "string"
@@ -513,13 +525,23 @@
                     }
                 },
                 "rebinding_time": {
-                    "type": "integer"
+                    "type": "integer",
+                    "suricata": {
+                        "keywords": [
+                            "dhcp.rebinding_time"
+                        ]
+                    }
                 },
                 "relay_ip": {
                     "type": "string"
                 },
                 "renewal_time": {
-                    "type": "integer"
+                    "type": "integer",
+                    "suricata": {
+                        "keywords": [
+                            "dhcp.renewal_time"
+                        ]
+                    }
                 },
                 "requested_ip": {
                     "type": "string"
@@ -597,7 +619,8 @@
                                         "type": "array",
                                         "minItems": 1,
                                         "items": {
-                                            "type": "object"
+                                            "type": "object",
+                                            "additionalProperties": true
                                         }
                                     },
                                     "prefix_code": {
@@ -658,6 +681,11 @@
                                 "type": "string"
                             }
                         }
+                    },
+                    "suricata": {
+                        "keywords": [
+                            "dnp3.iin"
+                        ]
                     }
                 },
                 "request": {
@@ -712,7 +740,8 @@
                                                 "type": "array",
                                                 "minItems": 1,
                                                 "items": {
-                                                    "type": "object"
+                                                    "type": "object",
+                                                    "additionalProperties": true
                                                 }
                                             },
                                             "prefix_code": {
@@ -822,7 +851,8 @@
                                                 "type": "array",
                                                 "minItems": 1,
                                                 "items": {
-                                                    "type": "object"
+                                                    "type": "object",
+                                                    "additionalProperties": true
                                                 }
                                             },
                                             "prefix_code": {
@@ -883,6 +913,11 @@
                                         "type": "string"
                                     }
                                 }
+                            },
+                            "suricata": {
+                                "keywords": [
+                                    "dnp3.iin"
+                                ]
                             }
                         },
                         "src": {
@@ -1485,7 +1520,12 @@
                             "additionalProperties": false,
                             "properties": {
                                 "class_name": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.cip_class"
+                                        ]
+                                    }
                                 },
                                 "multiple": {
                                     "type": "array",
@@ -1495,7 +1535,12 @@
                                         "additionalProperties": false,
                                         "properties": {
                                             "class_name": {
-                                                "type": "string"
+                                                "type": "string",
+                                                "suricata": {
+                                                    "keywords": [
+                                                        "enip.cip_class"
+                                                    ]
+                                                }
                                             },
                                             "path": {
                                                 "type": "array",
@@ -1508,7 +1553,14 @@
                                                             "type": "string"
                                                         },
                                                         "value": {
-                                                            "type": "integer"
+                                                            "type": "integer",
+                                                            "suricata": {
+                                                                "keywords": [
+                                                                    "enip.cip_attribute",
+                                                                    "enip.cip_class",
+                                                                    "enip.cip_instance"
+                                                                ]
+                                                            }
                                                         }
                                                     }
                                                 }
@@ -1530,7 +1582,14 @@
                                                 "type": "string"
                                             },
                                             "value": {
-                                                "type": "integer"
+                                                "type": "integer",
+                                                "suricata": {
+                                                    "keywords": [
+                                                        "enip.cip_attribute",
+                                                        "enip.cip_class",
+                                                        "enip.cip_instance"
+                                                    ]
+                                                }
                                             }
                                         }
                                     }
@@ -1541,7 +1600,12 @@
                             }
                         },
                         "command": {
-                            "type": "string"
+                            "type": "string",
+                            "suricata": {
+                                "keywords": [
+                                    "enip_command"
+                                ]
+                            }
                         },
                         "register_session": {
                             "type": "object",
@@ -1551,12 +1615,22 @@
                                     "type": "integer"
                                 },
                                 "protocol_version": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.protocol_version"
+                                        ]
+                                    }
                                 }
                             }
                         },
                         "status": {
-                            "type": "string"
+                            "type": "string",
+                            "suricata": {
+                                "keywords": [
+                                    "enip.status"
+                                ]
+                            }
                         }
                     }
                 },
@@ -1579,10 +1653,20 @@
                                                 "type": "string"
                                             },
                                             "status": {
-                                                "type": "string"
+                                                "type": "string",
+                                                "suricata": {
+                                                    "keywords": [
+                                                        "enip.cip_status"
+                                                    ]
+                                                }
                                             },
                                             "status_extended": {
-                                                "type": "string"
+                                                "type": "string",
+                                                "suricata": {
+                                                    "keywords": [
+                                                        "enip.cip_extendedstatus"
+                                                    ]
+                                                }
                                             },
                                             "status_extended_meaning": {
                                                 "type": "string"
@@ -1594,10 +1678,20 @@
                                     "type": "string"
                                 },
                                 "status": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.cip_status"
+                                        ]
+                                    }
                                 },
                                 "status_extended": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.cip_extendedstatus"
+                                        ]
+                                    }
                                 },
                                 "status_extended_meaning": {
                                     "type": "string"
@@ -1605,38 +1699,83 @@
                             }
                         },
                         "command": {
-                            "type": "string"
+                            "type": "string",
+                            "suricata": {
+                                "keywords": [
+                                    "enip_command"
+                                ]
+                            }
                         },
                         "identity": {
                             "type": "object",
                             "additionalProperties": false,
                             "properties": {
                                 "device_type": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.device_type"
+                                        ]
+                                    }
                                 },
                                 "product_code": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.product_code"
+                                        ]
+                                    }
                                 },
                                 "product_name": {
                                     "type": "string"
                                 },
                                 "protocol_version": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.protocol_version"
+                                        ]
+                                    }
                                 },
                                 "revision": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.revision"
+                                        ]
+                                    }
                                 },
                                 "serial": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.serial"
+                                        ]
+                                    }
                                 },
                                 "state": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.state"
+                                        ]
+                                    }
                                 },
                                 "status": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.identity_status"
+                                        ]
+                                    }
                                 },
                                 "vendor_id": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.vendor_id"
+                                        ]
+                                    }
                                 }
                             }
                         },
@@ -1645,10 +1784,20 @@
                             "additionalProperties": false,
                             "properties": {
                                 "capabilities": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.capabilities"
+                                        ]
+                                    }
                                 },
                                 "protocol_version": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.protocol_version"
+                                        ]
+                                    }
                                 },
                                 "service_name": {
                                     "type": "string"
@@ -1663,12 +1812,22 @@
                                     "type": "integer"
                                 },
                                 "protocol_version": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "enip.protocol_version"
+                                        ]
+                                    }
                                 }
                             }
                         },
                         "status": {
-                            "type": "string"
+                            "type": "string",
+                            "suricata": {
+                                "keywords": [
+                                    "enip.status"
+                                ]
+                            }
                         }
                     }
                 }
@@ -1712,54 +1871,73 @@
             "additionalProperties": false,
             "properties": {
                 "end": {
-                    "type": "integer"
+                    "type": "integer",
+                    "description": "The offset of the last byte captured"
                 },
                 "file_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "description": "Represents the id of a file that has been stored"
                 },
                 "filename": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "Name of the file as observed in network traffic"
                 },
                 "gaps": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Indicates if there were gaps in the file"
                 },
                 "magic": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "[optional, requires libmagic] The magic value for the file"
                 },
                 "md5": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "[optional, if state is ``CLOSED``] When closed, md5 sum"
                 },
                 "sha1": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "[optional, if state is ``CLOSED]`` When closed, sha1 sum"
                 },
                 "sha256": {
-                    "type": "string"
+                    "type": "string",
+                    "description": " The sha256 value for the file, if available"
                 },
                 "sid": {
                     "type": "array",
                     "minItems": 1,
                     "items": {
-                        "type": "integer"
+                        "type": "integer",
+                        "description": "One or more signature ids that triggered a `filestore`"
                     }
                 },
                 "size": {
-                    "type": "integer"
+                    "type": "integer",
+                    "description": "The observed size fo the file, in bytes",
+                    "suricata": {
+                        "keywords": [
+                            "filesize"
+                        ]
+                    }
                 },
                 "start": {
-                    "type": "integer"
+                    "type": "integer",
+                    "description": "The offset of the first byte captured"
                 },
                 "state": {
-                    "type": "string"
+                    "type": "string",
+                    "description": "The state of the file when the record is written"
                 },
                 "stored": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "description": "Indicates whether the file has been stored"
                 },
                 "storing": {
                     "type": "boolean",
-                    "description": "the file is set to be stored when completed"
+                    "description": "Indicates whether the file is in the process of being stored; true when not yet stored"
                 },
                 "tx_id": {
-                    "type": "integer"
+                    "type": "integer",
+                    "description": "The transaction id in effect"
                 }
             }
         },
@@ -1815,7 +1993,7 @@
                     },
                     "storing": {
                         "type": "boolean",
-                        "description": "the file is set to be stored when completed"
+                        "description": "The file is set to be stored when completed"
                     },
                     "tx_id": {
                         "type": "integer"
@@ -2013,7 +2191,12 @@
                     }
                 },
                 "dynamic_port": {
-                    "type": "integer"
+                    "type": "integer",
+                    "suricata": {
+                        "keywords": [
+                            "ftp.dynamic_port"
+                        ]
+                    }
                 },
                 "mode": {
                     "type": "string"
@@ -2086,13 +2269,23 @@
                             "minProperties": 1,
                             "properties": {
                                 "error_code": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "suricata": {
+                                        "keywords": [
+                                            "http2.errorcode"
+                                        ]
+                                    }
                                 },
                                 "has_multiple": {
                                     "type": "string"
                                 },
                                 "priority": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "http2.priority"
+                                        ]
+                                    }
                                 },
                                 "settings": {
                                     "type": "array",
@@ -2118,7 +2311,12 @@
                             "minProperties": 1,
                             "properties": {
                                 "error_code": {
-                                    "type": "string"
+                                    "type": "string",
+                                    "suricata": {
+                                        "keywords": [
+                                            "http2.errorcode"
+                                        ]
+                                    }
                                 },
                                 "has_multiple": {
                                     "type": "string"
@@ -2190,7 +2388,12 @@
                                 "type": "string"
                             },
                             "table_size_update": {
-                                "type": "integer"
+                                "type": "integer",
+                                "suricata": {
+                                    "keywords": [
+                                        "http2.size_update"
+                                    ]
+                                }
                             },
                             "value": {
                                 "type": "string"
@@ -2209,7 +2412,12 @@
                                 "type": "string"
                             },
                             "table_size_update": {
-                                "type": "integer"
+                                "type": "integer",
+                                "suricata": {
+                                    "keywords": [
+                                        "http2.size_update"
+                                    ]
+                                }
                             },
                             "value": {
                                 "type": "string"
@@ -2222,7 +2430,7 @@
                 },
                 "status_string": {
                     "type": "string",
-                    "description": "status string when it is not a valid integer (like 2XX)"
+                    "description": "Status string when it is not a valid integer (like 2XX)"
                 },
                 "true_client_ip": {
                     "type": "string"
@@ -2242,41 +2450,64 @@
             }
         },
         "icmp_code": {
-            "type": "integer"
+            "type": "integer",
+            "suricata": {
+                "keywords": [
+                    "icode"
+                ]
+            }
         },
         "icmp_type": {
-            "type": "integer"
+            "type": "integer",
+            "suricata": {
+                "keywords": [
+                    "itype"
+                ]
+            }
         },
         "ike": {
             "type": "object",
             "additionalProperties": false,
             "properties": {
-                "alg_auth": {
-                    "type": "string"
-                },
-                "alg_auth_raw": {
+                "_v": {
+                    "desription": "The version of the IKE log record (not IKE version)",
                     "type": "integer"
                 },
-                "alg_dh": {
-                    "type": "string"
-                },
-                "alg_dh_raw": {
-                    "type": "integer"
-                },
-                "alg_enc": {
-                    "type": "string"
-                },
-                "alg_enc_raw": {
-                    "type": "integer"
-                },
-                "alg_hash": {
-                    "type": "string"
-                },
-                "alg_hash_raw": {
-                    "type": "integer"
+                "attributes": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "properties": {
+                            "key": {
+                                "type": "string",
+                                "enum": [
+                                    "alg_auth",
+                                    "alg_dh",
+                                    "alg_enc",
+                                    "alg_hash",
+                                    "sa_key_length",
+                                    "sa_life_duration",
+                                    "sa_life_type"
+                                ]
+                            },
+                            "raw": {
+                                "type": ["string", "number"]
+                            },
+                            "value": {
+                                "type": "string"
+                            }
+                        }
+                    }
                 },
                 "exchange_type": {
-                    "type": "integer"
+                    "type": "integer",
+                    "suricata": {
+                        "keywords": [
+                            "ike.exchtype"
+                        ]
+                    }
                 },
                 "exchange_type_verbose": {
                     "type": "string"
@@ -2293,13 +2524,23 @@
                                     "type": "string"
                                 },
                                 "key_exchange_payload_length": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "ike.key_exchange_payload_length"
+                                        ]
+                                    }
                                 },
                                 "nonce_payload": {
                                     "type": "string"
                                 },
                                 "nonce_payload_length": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "suricata": {
+                                        "keywords": [
+                                            "ike.nonce_payload_length"
+                                        ]
+                                    }
                                 },
                                 "proposals": {
                                     "type": "array",
@@ -2308,47 +2549,23 @@
                                         "type": "object",
                                         "additionalProperties": false,
                                         "properties": {
-                                            "alg_auth": {
+                                            "key": {
+                                                "type": "string",
+                                                "enum": [
+                                                    "alg_auth",
+                                                    "alg_dh",
+                                                    "alg_enc",
+                                                    "alg_hash",
+                                                    "sa_key_length",
+                                                    "sa_life_duration",
+                                                    "sa_life_type"
+                                                ]
+                                            },
+                                            "raw": {
+                                                "type": ["string", "number"]
+                                            },
+                                            "value": {
                                                 "type": "string"
-                                            },
-                                            "alg_auth_raw": {
-                                                "type": "integer"
-                                            },
-                                            "alg_dh": {
-                                                "type": "string"
-                                            },
-                                            "alg_dh_raw": {
-                                                "type": "integer"
-                                            },
-                                            "alg_enc": {
-                                                "type": "string"
-                                            },
-                                            "alg_enc_raw": {
-                                                "type": "integer"
-                                            },
-                                            "alg_hash": {
-                                                "type": "string"
-                                            },
-                                            "alg_hash_raw": {
-                                                "type": "integer"
-                                            },
-                                            "sa_key_length": {
-                                                "type": "string"
-                                            },
-                                            "sa_key_length_raw": {
-                                                "type": "integer"
-                                            },
-                                            "sa_life_duration": {
-                                                "type": "string"
-                                            },
-                                            "sa_life_duration_raw": {
-                                                "type": "integer"
-                                            },
-                                            "sa_life_type": {
-                                                "type": "string"
-                                            },
-                                            "sa_life_type_raw": {
-                                                "type": "integer"
                                             }
                                         }
                                     }
@@ -2364,6 +2581,7 @@
                         "server": {
                             "type": "object",
                             "additionalProperties": false,
+                            "minProperties": 1,
                             "properties": {
                                 "key_exchange_payload": {
                                     "type": "string"
@@ -2418,24 +2636,6 @@
                 },
                 "role": {
                     "type": "string"
-                },
-                "sa_key_length": {
-                    "type": "string"
-                },
-                "sa_key_length_raw": {
-                    "type": "integer"
-                },
-                "sa_life_duration": {
-                    "type": "string"
-                },
-                "sa_life_duration_raw": {
-                    "type": "integer"
-                },
-                "sa_life_type": {
-                    "type": "string"
-                },
-                "sa_life_type_raw": {
-                    "type": "integer"
                 },
                 "version_major": {
                     "type": "integer"
@@ -2544,6 +2744,7 @@
         },
         "ldap": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "request": {
                     "type": "object",
@@ -2551,6 +2752,7 @@
                     "properties": {
                         "abandon_request": {
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "message_id": {
                                     "type": "integer"
@@ -2560,12 +2762,14 @@
                         },
                         "add_request": {
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "attributes": {
                                     "type": "array",
                                     "minItems": 1,
                                     "items": {
                                         "type": "object",
+                                        "additionalProperties": false,
                                         "properties": {
                                             "name": {
                                                 "type": "string"
@@ -2588,12 +2792,14 @@
                         },
                         "bind_request": {
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "name": {
                                     "type": "string"
                                 },
                                 "sasl": {
                                     "type": "object",
+                                    "additionalProperties": false,
                                     "properties": {
                                         "credentials": {
                                             "type": "string",
@@ -2613,9 +2819,11 @@
                         },
                         "compare_request": {
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "attribute_value_assertion": {
                                     "type": "object",
+                                    "additionalProperties": false,
                                     "properties": {
                                         "description": {
                                             "type": "string"
@@ -2633,6 +2841,7 @@
                         },
                         "del_request": {
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "dn": {
                                     "type": "string"
@@ -2642,6 +2851,7 @@
                         },
                         "extended_request": {
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "name": {
                                     "type": "string"
@@ -2658,6 +2868,7 @@
                         },
                         "mod_dn_request": {
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "delete_old_rdn": {
                                     "type": "boolean"
@@ -2677,15 +2888,18 @@
                         },
                         "modify_request": {
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "changes": {
                                     "type": "array",
                                     "minItems": 1,
                                     "items": {
                                         "type": "object",
+                                        "additionalProperties": false,
                                         "properties": {
                                             "modification": {
                                                 "type": "object",
+                                                "additionalProperties": false,
                                                 "properties": {
                                                     "attribute_type": {
                                                         "type": "string"
@@ -2712,10 +2926,16 @@
                             "optional": "true"
                         },
                         "operation": {
-                            "type": "string"
+                            "type": "string",
+                            "suricata": {
+                                "keywords": [
+                                    "ldap.request.operation"
+                                ]
+                            }
                         },
                         "search_request": {
                             "type": "object",
+                            "additionalProperties": false,
                             "properties": {
                                 "attributes": {
                                     "type": "array",
@@ -2741,6 +2961,9 @@
                                 },
                                 "types_online": {
                                     "type": "boolean"
+                                },
+                                "types_only": {
+                                    "type": "boolean"
                                 }
                             },
                             "optional": "true"
@@ -2751,11 +2974,18 @@
                     "type": "array",
                     "optional": "true",
                     "minItems": 1,
+                    "suricata": {
+                        "keywords": [
+                            "ldap.responses.count"
+                        ]
+                    },
                     "items": {
                         "type": "object",
+                        "additionalProperties": false,
                         "properties": {
                             "add_response": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "matched_dn": {
                                         "type": "string"
@@ -2764,13 +2994,19 @@
                                         "type": "string"
                                     },
                                     "result_code": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "suricata": {
+                                            "keywords": [
+                                                "ldap.responses.result_code"
+                                            ]
+                                        }
                                     }
                                 },
                                 "optional": "true"
                             },
                             "bind_response": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "matched_dn": {
                                         "type": "string"
@@ -2779,7 +3015,12 @@
                                         "type": "string"
                                     },
                                     "result_code": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "suricata": {
+                                            "keywords": [
+                                                "ldap.responses.result_code"
+                                            ]
+                                        }
                                     },
                                     "server_sasl_creds": {
                                         "type": "string",
@@ -2790,6 +3031,7 @@
                             },
                             "compare_response": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "matched_dn": {
                                         "type": "string"
@@ -2798,13 +3040,19 @@
                                         "type": "string"
                                     },
                                     "result_code": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "suricata": {
+                                            "keywords": [
+                                                "ldap.responses.result_code"
+                                            ]
+                                        }
                                     }
                                 },
                                 "optional": "true"
                             },
                             "del_response": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "matched_dn": {
                                         "type": "string"
@@ -2813,13 +3061,19 @@
                                         "type": "string"
                                     },
                                     "result_code": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "suricata": {
+                                            "keywords": [
+                                                "ldap.responses.result_code"
+                                            ]
+                                        }
                                     }
                                 },
                                 "optional": "true"
                             },
                             "extended_response": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "matched_dn": {
                                         "type": "string"
@@ -2831,7 +3085,12 @@
                                         "type": "string"
                                     },
                                     "result_code": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "suricata": {
+                                            "keywords": [
+                                                "ldap.responses.result_code"
+                                            ]
+                                        }
                                     },
                                     "value": {
                                         "type": "string"
@@ -2841,6 +3100,7 @@
                             },
                             "intermediate_response": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "name": {
                                         "type": "string"
@@ -2851,8 +3111,12 @@
                                 },
                                 "optional": "true"
                             },
+                            "message_id": {
+                                "type": "integer"
+                            },
                             "mod_dn_response": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "matched_dn": {
                                         "type": "string"
@@ -2861,13 +3125,19 @@
                                         "type": "string"
                                     },
                                     "result_code": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "suricata": {
+                                            "keywords": [
+                                                "ldap.responses.result_code"
+                                            ]
+                                        }
                                     }
                                 },
                                 "optional": "true"
                             },
                             "modify_response": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "matched_dn": {
                                         "type": "string"
@@ -2876,13 +3146,27 @@
                                         "type": "string"
                                     },
                                     "result_code": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "suricata": {
+                                            "keywords": [
+                                                "ldap.responses.result_code"
+                                            ]
+                                        }
                                     }
                                 },
                                 "optional": "true"
                             },
+                            "operation": {
+                                "type": "string",
+                                "suricata": {
+                                    "keywords": [
+                                        "ldap.responses.operation"
+                                    ]
+                                }
+                            },
                             "search_result_done": {
                                 "type": "object",
+                                "additionalProperties": false,
                                 "properties": {
                                     "matched_dn": {
                                         "type": "string"
@@ -2891,6 +3175,41 @@
                                         "type": "string"
                                     },
                                     "result_code": {
+                                        "type": "string",
+                                        "suricata": {
+                                            "keywords": [
+                                                "ldap.responses.result_code"
+                                            ]
+                                        }
+                                    }
+                                },
+                                "optional": "true"
+                            },
+                            "search_result_entry": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "properties": {
+                                    "attributes": {
+                                        "type": "array",
+                                        "minItems": 1,
+                                        "items": {
+                                            "type": "object",
+                                            "additionalProperties": false,
+                                            "properties": {
+                                                "type": {
+                                                    "type": "string"
+                                                },
+                                                "values": {
+                                                    "type": "array",
+                                                    "minItems": 1,
+                                                    "items": {
+                                                        "type": "string"
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    },
+                                    "base_object": {
                                         "type": "string"
                                     }
                                 },
@@ -3074,6 +3393,7 @@
                     "minItems": 1,
                     "items": {
                         "type": "object",
+                        "additionalProperties": false,
                         "properties": {
                             "rrname": {
                                 "description": "Resource name being requested",
@@ -3116,6 +3436,7 @@
             "properties": {
                 "entropy": {
                     "type": "object",
+                    "additionalProperties": true,
                     "suricata": {
                         "keywords": [
                             "entropy"
@@ -3136,6 +3457,7 @@
                 },
                 "flowints": {
                     "type": "object",
+                    "additionalProperties": true,
                     "suricata": {
                         "keywords": [
                             "flowint"
@@ -3147,6 +3469,7 @@
                     "minItems": 1,
                     "items": {
                         "type": "object",
+                        "additionalProperties": true,
                         "properties": {
                             "gid": {
                                 "type": "string"
@@ -3361,22 +3684,38 @@
         "mqtt": {
             "type": "object",
             "additionalProperties": false,
+            "suricata": {
+                "keywords": [
+                    "mqtt.type"
+                ]
+            },
             "properties": {
                 "connack": {
                     "type": "object",
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "properties": {
-                            "type": "object"
+                            "type": "object",
+                            "additionalProperties": true
                         },
                         "qos": {
                             "type": "integer"
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "return_code": {
                             "type": "integer"
@@ -3394,11 +3733,21 @@
                             "type": "string"
                         },
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "flags": {
                             "type": "object",
                             "additionalProperties": false,
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.connect.flags"
+                                ]
+                            },
                             "properties": {
                                 "clean_session": {
                                     "type": "boolean"
@@ -3421,19 +3770,30 @@
                             "type": "string"
                         },
                         "properties": {
-                            "type": "object"
+                            "type": "object",
+                            "additionalProperties": true
                         },
                         "protocol_string": {
                             "type": "string"
                         },
                         "protocol_version": {
-                            "type": "integer"
+                            "type": "integer",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.protocol_version"
+                                ]
+                            }
                         },
                         "qos": {
                             "type": "integer"
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "username": {
                             "type": "string"
@@ -3446,7 +3806,8 @@
                                     "type": "string"
                                 },
                                 "properties": {
-                                    "type": "object"
+                                    "type": "object",
+                                    "additionalProperties": true
                                 },
                                 "topic": {
                                     "type": "string"
@@ -3460,19 +3821,35 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "properties": {
-                            "type": "object"
+                            "type": "object",
+                            "additionalProperties": true
                         },
                         "qos": {
                             "type": "integer"
                         },
                         "reason_code": {
-                            "type": "integer"
+                            "type": "integer",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.reason_code"
+                                ]
+                            }
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         }
                     }
                 },
@@ -3481,13 +3858,23 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "qos": {
                             "type": "integer"
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         }
                     }
                 },
@@ -3496,13 +3883,23 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "qos": {
                             "type": "integer"
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         }
                     }
                 },
@@ -3511,7 +3908,12 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "message_id": {
                             "type": "integer"
@@ -3520,10 +3922,20 @@
                             "type": "integer"
                         },
                         "reason_code": {
-                            "type": "integer"
+                            "type": "integer",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.reason_code"
+                                ]
+                            }
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         }
                     }
                 },
@@ -3532,7 +3944,12 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "message_id": {
                             "type": "integer"
@@ -3541,10 +3958,20 @@
                             "type": "integer"
                         },
                         "reason_code": {
-                            "type": "integer"
+                            "type": "integer",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.reason_code"
+                                ]
+                            }
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         }
                     }
                 },
@@ -3553,7 +3980,12 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "message": {
                             "type": "string"
@@ -3562,13 +3994,19 @@
                             "type": "integer"
                         },
                         "properties": {
-                            "type": "object"
+                            "type": "object",
+                            "additionalProperties": true
                         },
                         "qos": {
                             "type": "integer"
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "skipped_length": {
                             "type": "integer"
@@ -3586,7 +4024,12 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "message_id": {
                             "type": "integer"
@@ -3595,10 +4038,20 @@
                             "type": "integer"
                         },
                         "reason_code": {
-                            "type": "integer"
+                            "type": "integer",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.reason_code"
+                                ]
+                            }
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         }
                     }
                 },
@@ -3607,7 +4060,12 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "message_id": {
                             "type": "integer"
@@ -3616,10 +4074,20 @@
                             "type": "integer"
                         },
                         "reason_code": {
-                            "type": "integer"
+                            "type": "integer",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.reason_code"
+                                ]
+                            }
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         }
                     }
                 },
@@ -3628,7 +4096,12 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "message_id": {
                             "type": "integer"
@@ -3644,7 +4117,12 @@
                             }
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         }
                     }
                 },
@@ -3653,7 +4131,12 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "message_id": {
                             "type": "integer"
@@ -3662,7 +4145,12 @@
                             "type": "integer"
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "topics": {
                             "type": "array",
@@ -3687,7 +4175,12 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "message_id": {
                             "type": "integer"
@@ -3700,10 +4193,20 @@
                             "minItems": 1,
                             "items": {
                                 "type": "integer"
+                            },
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.reason_code"
+                                ]
                             }
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         }
                     }
                 },
@@ -3712,7 +4215,12 @@
                     "additionalProperties": false,
                     "properties": {
                         "dup": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "message_id": {
                             "type": "integer"
@@ -3721,7 +4229,12 @@
                             "type": "integer"
                         },
                         "retain": {
-                            "type": "boolean"
+                            "type": "boolean",
+                            "suricata": {
+                                "keywords": [
+                                    "mqtt.flags"
+                                ]
+                            }
                         },
                         "topics": {
                             "type": "array",
@@ -3737,6 +4250,7 @@
         },
         "ndpi": {
             "type": "object",
+            "additionalProperties": true,
             "description": "nDPI plugin, contents provided by 3rd party library"
         },
         "netflow": {
@@ -3814,7 +4328,12 @@
                     "type": "integer"
                 },
                 "procedure": {
-                    "type": "string"
+                    "type": "string",
+                    "suricata": {
+                        "keywords": [
+                            "nfs_procedure"
+                        ]
+                    }
                 },
                 "read": {
                     "type": "object",
@@ -3855,7 +4374,12 @@
                     "type": "string"
                 },
                 "version": {
-                    "type": "integer"
+                    "type": "integer",
+                    "suricata": {
+                        "keywords": [
+                            "nfs.version"
+                        ]
+                    }
                 },
                 "write": {
                     "type": "object",
@@ -3891,7 +4415,7 @@
                 },
                 "linktype_name": {
                     "type": "string",
-                    "description": "the descriptive name of the linktype"
+                    "description": "The descriptive name of the linktype"
                 }
             },
             "optional": true
@@ -3924,6 +4448,7 @@
                     "properties": {
                         "copy_data_in": {
                             "type": "object",
+                            "additionalProperties": false,
                             "description": "CopyData message from CopyIn mode",
                             "properties": {
                                 "data_size": {
@@ -3945,7 +4470,7 @@
                         "password_redacted": {
                             "type": "boolean",
                             "description":
-                                    "indicates if a password message was received but not logged due to Suricata settings"
+                                    "Indicates if a password message was received but not logged due to Suricata settings"
                         },
                         "process_id": {
                             "type": "integer"
@@ -3977,6 +4502,7 @@
                                     "minItems": 1,
                                     "items": {
                                         "type": "object",
+                                        "additionalProperties": true,
                                         "properties": {
                                             "application_name": {
                                                 "type": "string"
@@ -4027,6 +4553,7 @@
                         },
                         "copy_data_out": {
                             "type": "object",
+                            "additionalProperties": false,
                             "description": "CopyData message from CopyOut mode",
                             "properties": {
                                 "data_size": {
@@ -4041,6 +4568,7 @@
                         },
                         "copy_in_response": {
                             "type": "object",
+                            "additionalProperties": false,
                             "description": "Backend/server response accepting CopyIn mode",
                             "properties": {
                                 "columns": {
@@ -4051,6 +4579,7 @@
                         },
                         "copy_out_response": {
                             "type": "object",
+                            "additionalProperties": false,
                             "description": "Backend/server response accepting CopyOut mode",
                             "properties": {
                                 "columns": {
@@ -4082,6 +4611,7 @@
                             "minItems": 1,
                             "items": {
                                 "type": "object",
+                                "additionalProperties": true,
                                 "properties": {
                                     "application_name": {
                                         "type": "string"
@@ -4150,26 +4680,29 @@
         },
         "pop3": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "request": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "args": {
                             "type": "array",
-                            "description": "pop3 request arguments",
+                            "description": "Pop3 request arguments",
                             "items": {
                                 "type": "string"
                             }
                         },
                         "command": {
                             "type": "string",
-                            "description": "a pop3 command, for example `USER` or `STAT`"
+                            "description": "A pop3 command, for example `USER` or `STAT`"
                         }
                     },
                     "optional": true
                 },
                 "response": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "data": {
                             "type": "array",
@@ -4179,14 +4712,14 @@
                         },
                         "header": {
                             "type": "string",
-                            "description": "first line of response"
+                            "description": "First line of response"
                         },
                         "status": {
                             "type": "string"
                         },
                         "success": {
                             "type": "boolean",
-                            "description": "response indicated positive status ie +OK"
+                            "description": "Response indicated positive status ie +OK"
                         }
                     },
                     "optional": true
@@ -4204,7 +4737,7 @@
                 "cyu": {
                     "type": "array",
                     "description":
-                            "ja3-like fingerprint for versions of QUIC before standardization",
+                            "JA3-like fingerprint for versions of QUIC before standardization",
                     "minItems": 1,
                     "items": {
                         "type": "object",
@@ -4212,11 +4745,11 @@
                         "properties": {
                             "hash": {
                                 "type": "string",
-                                "description": "cyu hash hex representation"
+                                "description": "CYU hash hex representation"
                             },
                             "string": {
                                 "type": "string",
-                                "description": "cyu hash string representation"
+                                "description": "CYU hash string representation"
                             }
                         }
                     }
@@ -4231,15 +4764,15 @@
                         "properties": {
                             "name": {
                                 "type": "string",
-                                "description": "human-friendly name of the extension"
+                                "description": "Human-friendly name of the extension"
                             },
                             "type": {
                                 "type": "integer",
-                                "description": "integer identifier of the extension"
+                                "description": "Integer identifier of the extension"
                             },
                             "values": {
                                 "type": "array",
-                                "description": "extension values",
+                                "description": "Extension values",
                                 "minItems": 1,
                                 "items": {
                                     "type": "string"
@@ -4254,14 +4787,14 @@
                     "properties": {
                         "hash": {
                             "type": "string",
-                            "description": "ja3 hex representation"
+                            "description": "JA3 hex representation"
                         },
                         "string": {
                             "type": "string",
-                            "description": "ja3 string representation"
+                            "description": "JA3 string representation"
                         }
                     },
-                    "description": "ja3 from client, as in TLS",
+                    "description": "JA3 from client, as in TLS",
                     "optional": true
                 },
                 "ja3s": {
@@ -4270,14 +4803,14 @@
                     "properties": {
                         "hash": {
                             "type": "string",
-                            "description": "ja3s hex representation"
+                            "description": "JA3s hex representation"
                         },
                         "string": {
                             "type": "string",
-                            "description": "ja3s string representation"
+                            "description": "JA3s string representation"
                         }
                     },
-                    "description": "ja3 from server, as in TLS",
+                    "description": "JA3 from server, as in TLS",
                     "optional": true
                 },
                 "ja4": {
@@ -4387,10 +4920,20 @@
                     "additionalProperties": false,
                     "properties": {
                         "security_result": {
-                            "type": "string"
+                            "type": "string",
+                            "suricata": {
+                                "keywords": [
+                                    "rfb.secresult"
+                                ]
+                            }
                         },
                         "security_type": {
-                            "type": "integer"
+                            "type": "integer",
+                            "suricata": {
+                                "keywords": [
+                                    "rfb.sectype"
+                                ]
+                            }
                         },
                         "vnc": {
                             "type": "object",
@@ -5002,7 +5545,12 @@
                     "type": "string"
                 },
                 "pdu_type": {
-                    "type": "string"
+                    "type": "string",
+                    "suricata": {
+                        "keywords": [
+                            "snmp.pdu_type"
+                        ]
+                    }
                 },
                 "usm": {
                     "type": "string"
@@ -5015,7 +5563,12 @@
                     }
                 },
                 "version": {
-                    "type": "integer"
+                    "type": "integer",
+                    "suricata": {
+                        "keywords": [
+                            "snmp.version"
+                        ]
+                    }
                 }
             },
             "optional": true
@@ -5627,15 +6180,19 @@
                 },
                 "capture": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "kernel_drops": {
-                            "type": "integer"
+                            "type": "integer",
+                            "description": "Number of packets dropped by the kernel"
                         },
                         "kernel_ifdrops": {
-                            "type": "integer"
+                            "type": "integer",
+                            "description": "Number of packets dropped by the interface"
                         },
                         "kernel_packets": {
-                            "type": "integer"
+                            "type": "integer",
+                            "description": "Number of packets received from the kernel"
                         }
                     }
                 },
@@ -5667,6 +6224,10 @@
                         "esp": {
                             "type": "integer",
                             "description": "Number of ESP packets decoded"
+                        },
+                        "etag": {
+                            "type": "integer",
+                            "description": "Number of ETAG packets decoded"
                         },
                         "ethernet": {
                             "type": "integer",
@@ -5748,15 +6309,15 @@
                                     "properties": {
                                         "header_too_small": {
                                             "type": "integer",
-                                            "description": "Number of packets with header too small for ERPSAN"
+                                            "description": "Number of packets with header too small for ERSPAN"
                                         },
                                         "too_many_vlan_layers": {
                                             "type": "integer",
-                                            "description": "Number of packets with too many VLAN layers for ERPSAN"
+                                            "description": "Number of packets with too many VLAN layers for ERSPAN"
                                         },
                                         "unsupported_version": {
                                             "type": "integer",
-                                            "description": "Number of packets with unsupported version for ERPSAN"
+                                            "description": "Number of packets with unsupported version for ERSPAN"
                                         }
                                     }
                                 },
@@ -5767,6 +6328,20 @@
                                         "pkt_too_small": {
                                             "type": "integer",
                                             "description": "Number of packets too small for ESP"
+                                        }
+                                    }
+                                },
+                                "etag": {
+                                    "type": "object",
+                                    "additionalProperties": false,
+                                    "properties": {
+                                        "header_too_small": {
+                                            "type": "integer",
+                                            "description": "Number of packets with header too small for ETAG"
+                                        },
+                                        "unknown_type": {
+                                            "type": "integer",
+                                            "description": "Number of ETAG packets with unknown type"
                                         }
                                     }
                                 },
@@ -5949,52 +6524,68 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "frag_ignored": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 fragments ignored due to resource allocation errors"
                                         },
                                         "frag_overlap": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 fragments with overlapping data"
                                         },
                                         "frag_pkt_too_large": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 fragments ignored due to being too large"
                                         },
                                         "hlen_too_small": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets flagged invalid due to header smaller than minimum size"
                                         },
                                         "icmpv6": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets flagged invalid due to having an ICMPV6 header"
                                         },
                                         "iplen_smaller_than_hlen": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets flagged invalid due to length being smaller than IP header size"
                                         },
                                         "opt_duplicate": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets with duplicated IP options"
                                         },
                                         "opt_eol_required": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets with 'end of list' option not present, but required, in IP options"
                                         },
                                         "opt_invalid": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets with invalid IP options"
                                         },
                                         "opt_invalid_len": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets flagged invalid due to IP options with invalid length"
                                         },
                                         "opt_malformed": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets flagged invalid due to malformed IP options"
                                         },
                                         "opt_pad_required": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets with padding bytes required in IP options"
                                         },
                                         "opt_unknown": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets flagged invalid due to unknown IP option"
                                         },
                                         "pkt_too_small": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets flagged invalid due to size smaller than minimum header size"
                                         },
                                         "trunc_pkt": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets flagged invalid due to truncated packet"
                                         },
                                         "wrong_ip_version": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4 packets flagged invalid due to having wrong IP version in IP options"
                                         }
                                     }
                                 },
@@ -6003,97 +6594,128 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "data_after_none_header": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with data after the 'none' header"
                                         },
                                         "dstopts_only_padding": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with all DST options as only padding"
                                         },
                                         "dstopts_unknown_opt": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with unknown DST option"
                                         },
                                         "exthdr_ah_res_not_null": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with AH header reserved fields not null"
                                         },
                                         "exthdr_dupl_ah": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with duplicated 'authentication' header in IPv6 extension headers"
                                         },
                                         "exthdr_dupl_dh": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with duplicated 'destination' header in IPv6 extension headers"
                                         },
                                         "exthdr_dupl_eh": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with duplicated 'ESP' header in IPv6 extension headers"
                                         },
                                         "exthdr_dupl_fh": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with duplicated 'fragment' header in IPv6 extension headers"
                                         },
                                         "exthdr_dupl_hh": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with duplicated 'hop-by-hop' header in IPv6 extension headers"
                                         },
                                         "exthdr_dupl_rh": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with duplicated'routing' header in IPv6 extension headers"
                                         },
                                         "exthdr_invalid_optlen": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets flagged invalid due to invalid option length in a hop or dst extended header"
                                         },
                                         "exthdr_useless_fh": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with useless 'fragment header' in the extended headers"
                                         },
                                         "fh_non_zero_reserved_field": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with 'fragment header' with non-zero reserved field"
                                         },
                                         "frag_ignored": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 fragments ignored due to resource allocation errors"
                                         },
                                         "frag_invalid_length": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 fragments with invalid length"
                                         },
                                         "frag_overlap": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 fragments with overlapping data"
                                         },
                                         "frag_pkt_too_large": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 fragments ignored due to being too large"
                                         },
                                         "hopopts_only_padding": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with all HOP options as only padding"
                                         },
                                         "hopopts_unknown_opt": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with unknown HOP option"
                                         },
                                         "icmpv4": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with ICMPv4 header"
                                         },
                                         "ipv4_in_ipv6_too_small": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description":"Number of IPv4-in-IPv6 packets flagged invalid due to being too small"
                                         },
                                         "ipv4_in_ipv6_wrong_version": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv4-in-IPv6 packets with wrong IP version"
                                         },
                                         "ipv6_in_ipv6_too_small": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6-in-IPv6 packets flagged invalid due to being too small"
                                         },
                                         "ipv6_in_ipv6_wrong_version": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6-in-IPv6 packets with wrong IP version"
                                         },
                                         "pkt_too_small": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets flagged invalid due to size smaller than minimum header size"
                                         },
                                         "rh_type_0": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with extended header 'routing' with type 0"
                                         },
                                         "trunc_exthdr": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets flagged invalid due to truncated extension header"
                                         },
                                         "trunc_pkt": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets flagged invalid due to truncated packet"
                                         },
                                         "unknown_next_header": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with unknown next header"
                                         },
                                         "wrong_ip_version": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets flagged invalid due to wrong IP version"
                                         },
                                         "zero_len_padn": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of IPv6 packets with PadN option without data (length zero)"
                                         }
                                     }
                                 },
@@ -6524,16 +7146,20 @@
                 },
                 "detect": {
                     "type": "object",
+                    "description": "Statistics related to the detection engines",
                     "additionalProperties": false,
                     "properties": {
                         "alert": {
-                            "type": "integer"
+                            "type": "integer",
+                            "description": "Count of alerts triggered"
                         },
                         "alert_queue_overflow": {
-                            "type": "integer"
+                            "type": "integer",
+                            "description": "Count of alerts discarded due to alert queue overflow or a drop in firewall mode"
                         },
                         "alerts_suppressed": {
-                            "type": "integer"
+                            "type": "integer",
+                            "description": "Count of alerts not logged due to noalert keyword usage or thresholding"
                         },
                         "engines": {
                             "type": "array",
@@ -6543,19 +7169,24 @@
                                 "additionalProperties": false,
                                 "properties": {
                                     "id": {
-                                        "type": "integer"
+                                        "type": "integer",
+                                        "description": "If multi-tenancy is enabled, the tenant id"
                                     },
                                     "last_reload": {
-                                        "type": "string"
+                                        "type": "string",
+                                        "description": "Last time the rules were reloaded, in TimeString format"
                                     },
                                     "rules_failed": {
-                                        "type": "integer"
+                                        "type": "integer",
+                                        "description": "Count of rules that failed to load"
                                     },
                                     "rules_loaded": {
-                                        "type": "integer"
+                                        "type": "integer",
+                                        "description": "Count of rules successfully loaded"
                                     },
                                     "rules_skipped": {
-                                        "type": "integer"
+                                        "type": "integer",
+                                        "description": "Count of rules that were skipped due to missing requirements"
                                     }
                                 }
                             }
@@ -6585,56 +7216,71 @@
                             }
                         },
                         "match_list": {
-                            "type": "integer"
+                            "type": "integer",
+                            "description": "If profiling is enabled, average count of signature matched against a packet"
                         },
                         "mpm_list": {
-                            "type": "integer"
+                            "type": "integer",
+                            "description": "If profiling is enabled, average count of signatures in the mpm prefilter list"
                         }
                     }
                 },
                 "exception_policy": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "app_layer": {
                             "type": "object",
-                            "error": {
-                                "description":
+                            "additionalProperties": false,
+                            "properties": {
+                                "error": {
+                                    "description":
                                         "Consolidated stats on how many times app-layer error exception policy was applied, and which one",
-                                "$ref": "#/$defs/exceptionPolicy"
+                                        "$ref": "#/$defs/exceptionPolicy"
+                                }
                             }
                         },
                         "defrag": {
                             "type": "object",
-                            "memcap": {
-                                "description":
+                            "additionalProperties": false,
+                            "properties": {
+                                "memcap": {
+                                    "description":
                                         "How many times defrag memcap exception policy was applied, and which one",
-                                "$ref": "#/$defs/exceptionPolicy"
+                                        "$ref": "#/$defs/exceptionPolicy"
+                                }
                             }
                         },
                         "flow": {
                             "type": "object",
-                            "memcap": {
-                                "description":
+                            "additionalProperties": false,
+                            "properties": {
+                                "memcap": {
+                                    "description":
                                         "How many times flow memcap exception policy was applied, and which one",
-                                "$ref": "#/$defs/exceptionPolicy"
+                                        "$ref": "#/$defs/exceptionPolicy"
+                                }
                             }
                         },
                         "tcp": {
                             "type": "object",
-                            "midstream": {
-                                "description":
+                            "additionalProperties": false,
+                            "properties": {
+                                "midstream": {
+                                    "description":
                                         "How many times midstream exception policy was applied, and which one",
-                                "$ref": "#/$defs/exceptionPolicy"
-                            },
-                            "ssn_memcap": {
-                                "description":
-                                        "How many times session memcap exception policy was applied, and which one",
-                                "$ref": "#/$defs/exceptionPolicy"
-                            },
-                            "reassembly": {
-                                "description":
+                                        "$ref": "#/$defs/exceptionPolicy"
+                                },
+                                "reassembly": {
+                                    "description":
                                         "How many times reassembly memcap exception policy was applied, and which one",
-                                "$ref": "#/$defs/exceptionPolicy"
+                                        "$ref": "#/$defs/exceptionPolicy"
+                                },
+                                "ssn_memcap": {
+                                    "description":
+                                        "How many times session memcap exception policy was applied, and which one",
+                                        "$ref": "#/$defs/exceptionPolicy"
+                                }
                             }
                         }
                     }
@@ -6656,6 +7302,7 @@
                 },
                 "flow": {
                     "type": "object",
+                    "description": "Stats on flow-related diagnostics",
                     "additionalProperties": false,
                     "properties": {
                         "active": {
@@ -6683,61 +7330,78 @@
                                     "additionalProperties": false,
                                     "properties": {
                                         "capture_bypassed": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of flows bypassed at the capture level -- counted at the time of flow end"
                                         },
                                         "closed": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of flows in 'closed' state at the time of flow end"
                                         },
                                         "established": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of flows in 'established' state at the time of flow end"
                                         },
                                         "local_bypassed": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of flows bypassed internally -- counted at the time of flow end"
                                         },
                                         "new": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of flows in 'new' state at the time of flow end"
                                         }
                                     }
                                 },
                                 "tcp_liberal": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "description": "Number of TCP flows ended that had liberal state"
                                 },
                                 "tcp_state": {
                                     "type": "object",
                                     "additionalProperties": false,
                                     "properties": {
                                         "close_wait": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions in CLOSE_WAIT state"
                                         },
                                         "closed": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions in CLOSED state"
                                         },
                                         "closing": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions in CLOSING state"
                                         },
                                         "established": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions in ESTABLISHED state"
                                         },
                                         "fin_wait1": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions in FIN_WAIT_1 state"
                                         },
                                         "fin_wait2": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions in FIN_WAIT_2 state"
                                         },
                                         "last_ack": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions in LAST_ACK state"
                                         },
                                         "none": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions newly created"
                                         },
                                         "syn_recv": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions in SYN_RECV state"
                                         },
                                         "syn_sent": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions in SYN_SENT state"
                                         },
                                         "time_wait": {
-                                            "type": "integer"
+                                            "type": "integer",
+                                            "description": "Number of TCP sessions in TIME_WAIT state"
                                         }
                                     }
                                 }
@@ -6786,43 +7450,44 @@
                         },
                         "mgr": {
                             "type": "object",
+                            "description": "Flow manager stats counters",
                             "additionalProperties": false,
                             "properties": {
                                 "flows_checked": {
                                     "type": "integer",
                                     "description":
-                                            "number of flows checked for timeout in the last pass"
+                                            "Number of flows checked for timeout in the last pass"
                                 },
                                 "flows_evicted": {
                                     "type": "integer",
-                                    "description": "number of flows that were evicted"
+                                    "description": "Number of flows that were evicted"
                                 },
                                 "flows_evicted_needs_work": {
                                     "type": "integer",
                                     "description":
-                                            "number of TCP flows that were returned to the workers in case reassembly, detection, logging still needs work"
+                                            "Number of TCP flows that were returned to the workers in case reassembly, detection, logging still needs work"
                                 },
                                 "flows_notimeout": {
                                     "type": "integer",
-                                    "description": "number of flows that did not time out"
+                                    "description": "Number of flows that did not time out"
                                 },
                                 "flows_timeout": {
                                     "type": "integer",
-                                    "description": "number of flows that reached the time out"
+                                    "description": "Number of flows that reached the time out"
                                 },
                                 "full_hash_pass": {
                                     "type": "integer",
                                     "description":
-                                            "number of times a full pass of the hash table was done"
+                                            "Number of times a full pass of the hash table was done"
                                 },
                                 "rows_maxlen": {
                                     "type": "integer",
-                                    "description": "size of the biggest row in the hash table"
+                                    "description": "Size of the biggest row in the hash table"
                                 },
                                 "rows_per_sec": {
                                     "type": "integer",
                                     "description":
-                                            "number of rows to be scanned every second by a worker"
+                                            "Number of rows to be scanned every second by a worker"
                                 }
                             }
                         },
@@ -6832,15 +7497,15 @@
                             "properties": {
                                 "queue_avg": {
                                     "type": "integer",
-                                    "description": "average number of recycled flows per queue"
+                                    "description": "Average number of recycled flows per queue"
                                 },
                                 "queue_max": {
                                     "type": "integer",
-                                    "description": "maximum number of recycled flows per queue"
+                                    "description": "Maximum number of recycled flows per queue"
                                 },
                                 "recycled": {
                                     "type": "integer",
-                                    "description": "number of recycled flows"
+                                    "description": "Number of recycled flows"
                                 }
                             }
                         },
@@ -6867,34 +7532,44 @@
                         },
                         "wrk": {
                             "type": "object",
+                            "description": "Flow worker threads stats",
                             "additionalProperties": false,
                             "properties": {
                                 "flows_evicted": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "description": "Number of flows that were evicted"
                                 },
                                 "flows_evicted_needs_work": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "description": "Number of TCP flows that were returned to the workers in case reassembly, detection, logging still needs work"
                                 },
                                 "flows_evicted_pkt_inject": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "description": "Number of pseudo packets injected into worker threads to complete flows' processing. For any flow this can be between 0-2, this is the total for all flows."
                                 },
                                 "flows_injected": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "description": "Number of flows injected into the worker thread from another thread"
                                 },
                                 "flows_injected_max": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "description": "Maximum number of flows injected into the worker thread from another thread"
                                 },
                                 "spare_sync": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "description": "Number of times the engine attempted to fetch flows from the master flow pool/spare queue"
                                 },
                                 "spare_sync_avg": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "description": "Average number of flows a thread could fetch from the master flow pool/spare queue"
                                 },
                                 "spare_sync_empty": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "description": "Number of times the master spare pool was empty when requesting flows from it"
                                 },
                                 "spare_sync_incomplete": {
-                                    "type": "integer"
+                                    "type": "integer",
+                                    "description": "Number of times spare flow syncs were incomplete (fetched with less than 100 flows in sync)"
                                 }
                             }
                         }
@@ -7293,7 +7968,8 @@
             "type": "integer"
         },
         "stream_tcp": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
         },
         "suricata_version": {
             "type": "string"
@@ -7303,6 +7979,7 @@
         },
         "tcp": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "ack": {
                     "type": "boolean"
@@ -7528,6 +8205,7 @@
                 },
                 "client_handshake": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "ciphers": {
                             "description": "TLS client cipher(s)",
@@ -7674,6 +8352,7 @@
                 },
                 "server_handshake": {
                     "type": "object",
+                    "additionalProperties": false,
                     "properties": {
                         "cipher": {
                             "description": "TLS server's chosen cipher",
@@ -7791,7 +8470,7 @@
         "tx_guessed": {
             "type": "boolean",
             "description":
-                    "the signature that triggered this alert didn't tie to a transaction, so the transaction (and metadata) logged is a forced estimation and may not be the one you expect"
+                    "The signature that triggered this alert didn't tie to a transaction, so the transaction (and metadata) logged is a forced estimation and may not be the one you expect"
         },
         "tx_id": {
             "type": "integer"
@@ -7801,9 +8480,19 @@
         },
         "vlan": {
             "type": "array",
+            "suricata": {
+                "keywords": [
+                    "vlan.layers"
+                ]
+            },
             "minItems": 1,
             "items": {
-                "type": "number"
+                "type": "number",
+                "suricata": {
+                    "keywords": [
+                        "vlan.id"
+                    ]
+                }
             }
         },
         "websocket": {
@@ -7811,13 +8500,28 @@
             "additionalProperties": false,
             "properties": {
                 "fin": {
-                    "type": "boolean"
+                    "type": "boolean",
+                    "suricata": {
+                        "keywords": [
+                            "websocket.flags"
+                        ]
+                    }
                 },
                 "mask": {
-                    "type": "integer"
+                    "type": "integer",
+                    "suricata": {
+                        "keywords": [
+                            "websocket.mask"
+                        ]
+                    }
                 },
                 "opcode": {
-                    "type": "string"
+                    "type": "string",
+                    "suricata": {
+                        "keywords": [
+                            "websocket.opcode"
+                        ]
+                    }
                 },
                 "payload_base64": {
                     "type": "string"
@@ -7989,6 +8693,7 @@
         },
         "verdict_type": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "action": {
                     "type": "string"
@@ -8023,6 +8728,7 @@
         },
         "exceptionPolicy": {
             "type": "object",
+            "additionalProperties": false,
             "properties": {
                 "bypass": {
                     "type": "integer",

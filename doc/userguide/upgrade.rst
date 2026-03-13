@@ -34,6 +34,34 @@ also check all the new features that have been added but are not covered by
 this guide. Those features are either not enabled by default or require
 dedicated new configuration.
 
+Upgrading to 9.0.0
+------------------
+
+Logging Changes
+~~~~~~~~~~~~~~~
+- The format of IKEv1 proposal attributes has been changed to handle
+  duplicate attribute types. See :ref:`IKE logging changes
+  <9.0-ike-logging-changes>`
+
+- Ethertype values (``ether.ether_type``) are now logged matching the network order value.
+  E.g., previously, ``ether_type`` values were logged in host order;  an ethertype value of ``0xfbb7``
+  (network order) was logged as `47099`` (``0xb7fb``). This ethertype value will be logged as ``64439``.
+
+Upgrading to 8.0.1
+------------------
+
+Major changes
+~~~~~~~~~~~~~
+
+- Various expected PPP packet types will no longer be marked as Unsupported Protocol
+  when in a PPPOE packet.
+- Added Cisco Discovery Protocol Control Protocol as a valid PPP packet.
+
+Keyword changes
+~~~~~~~~~~~~~~~
+- Usage of multiple ``tls.cert_subject`` in a rule will print a warning
+  as this keyword was not and is not implemented as a multi-buffer.
+
 Upgrading 7.0 to 8.0
 --------------------
 .. note:: ``stats.whitelist`` has been renamed to ``stats.score`` in ``eve.json``

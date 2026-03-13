@@ -1392,15 +1392,6 @@ const char *DetectEngineBufferTypeGetDescriptionById(const DetectEngineCtx *de_c
     return exists->description;
 }
 
-const char *DetectBufferTypeGetDescriptionByName(const char *name)
-{
-    const DetectBufferType *exists = DetectBufferTypeLookupByName(name);
-    if (!exists) {
-        return NULL;
-    }
-    return exists->description;
-}
-
 void DetectEngineBufferTypeSupportsFrames(DetectEngineCtx *de_ctx, const char *name)
 {
     DetectBufferType *exists = DetectEngineBufferTypeLookupByName(de_ctx, name);
@@ -2312,6 +2303,7 @@ static void InjectPackets(
  *
  *  If called in unix socket mode, it's possible that we don't have
  *  detect threads yet.
+ *  NOTE: master MUST be locked before calling this
  *
  *  \retval -1 error
  *  \retval 0 no detection threads
@@ -3161,6 +3153,9 @@ static TmEcode DetectEngineThreadCtxInitForMT(ThreadVars *tv, DetectEngineThread
     uint32_t max_tenant_id = 0;
     DetectEngineCtx *list = master->list;
 
+    DEBUG_VALIDATE_BUG_ON(!SCMutexIsLocked(&master->lock));
+
+    /* coverity[missing_lock] */
     if (master->tenant_selector == TENANT_SELECTOR_UNKNOWN) {
         SCLogError("no tenant selector set: "
                    "set using multi-detect.selector");
@@ -3591,7 +3586,7 @@ static void DetectEngineThreadCtxFree(DetectEngineThreadCtx *det_ctx)
         det_ctx->json_content_capacity = 0;
     }
 
-    AppLayerDecoderEventsFreeEvents(&det_ctx->decoder_events);
+    SCAppLayerDecoderEventsFreeEvents(&det_ctx->decoder_events);
     PrefilterPktNonPFStatsDump();
     SCFree(det_ctx);
 
@@ -4419,9 +4414,12 @@ int DetectEngineMultiTenantSetup(const bool unix_socket)
 
                 char yaml_path[PATH_MAX] = "";
                 if (path) {
-                    PathMerge(yaml_path, PATH_MAX, path, yaml_node->val);
+                    if (PathMerge(yaml_path, PATH_MAX, path, yaml_node->val) < 0)
+                        goto bad_tenant;
                 } else {
-                    strlcpy(yaml_path, yaml_node->val, sizeof(yaml_path));
+                    size_t r = strlcpy(yaml_path, yaml_node->val, sizeof(yaml_path));
+                    if (r >= sizeof(yaml_path))
+                        goto bad_tenant;
                 }
                 SCLogDebug("tenant path: %s", yaml_path);
 
@@ -4865,8 +4863,13 @@ int DetectEngineReload(const SCInstance *suri)
     DetectEngineDeReference(&old_de_ctx);
 
     SCLogDebug("going to reload the threads to use new_de_ctx %p", new_de_ctx);
+
+    DetectEngineMasterCtx *master = &g_master_de_ctx;
+    SCMutexLock(&master->lock);
     /* update the threads */
     DetectEngineReloadThreads(new_de_ctx);
+    SCMutexUnlock(&master->lock);
+
     SCLogDebug("threads now run new_de_ctx %p", new_de_ctx);
 
     /* walk free list, freeing the old_de_ctx */
@@ -5012,7 +5015,7 @@ const char *DetectSigmatchListEnumToString(enum DetectSigmatchListEnum type)
 /* events api */
 void DetectEngineSetEvent(DetectEngineThreadCtx *det_ctx, uint8_t e)
 {
-    AppLayerDecoderEventsSetEventRaw(&det_ctx->decoder_events, e);
+    SCAppLayerDecoderEventsSetEventRaw(&det_ctx->decoder_events, e);
     det_ctx->events++;
 }
 

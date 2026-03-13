@@ -173,6 +173,74 @@ void DetectAppLayerMpmMultiRegister(const char *name, int direction, int priorit
             tx_min_progress);
 }
 
+/** \internal
+ *  \brief build basic profiling name (pname) making sure the id is always fully printed
+ */
+static void BuildBasicPname(char *out, const size_t out_size, const char *name, const uint16_t id)
+{
+    size_t id_space;
+    if (id < 10)
+        id_space = 1;
+    else if (id < 100)
+        id_space = 2;
+    else if (id < 1000)
+        id_space = 3;
+    else if (id < 10000)
+        id_space = 4;
+    else
+        id_space = 5;
+    size_t name_space = out_size - (id_space + 1);
+    char pname[name_space];
+    if (strlen(name) >= name_space) {
+        ShortenString(name, pname, name_space, '~');
+    } else {
+        strlcpy(pname, name, sizeof(pname));
+    }
+    snprintf(out, out_size, "%s#%u", pname, id);
+}
+
+/** \internal
+ *  \brief add transforms to the profiling name, as space permits
+ *  \param out contains basic profiling name (pname), to be appended to
+ *  \note out will be untouched if there isn't enough space left of if there are no transforms
+ */
+static void AppendTransformsToPname(
+        char *out, const size_t out_size, const DetectEngineTransforms *transforms)
+{
+    if (transforms == NULL || transforms->cnt == 0)
+        return;
+
+    ssize_t left = (ssize_t)out_size - (ssize_t)strlen(out) - (ssize_t)4;
+    /* only append xform if we can add least 5 chars */
+    if (left >= 5) {
+        /* create comma separated string of the names of the
+         * transforms and then shorten it if necessary. Finally
+         * use it to construct the 'profile' name for the engine */
+        char xforms[left + 1];
+        memset(xforms, 0, left + 1);
+        for (int i = 0; i < transforms->cnt; i++) {
+            char ttstr[64];
+            (void)snprintf(ttstr, sizeof(ttstr), "%s,",
+                    sigmatch_table[transforms->transforms[i].transform].name);
+            strlcat(xforms, ttstr, sizeof(xforms));
+        }
+        if (strlen(xforms) == 0)
+            return;
+        xforms[strlen(xforms) - 1] = '\0';
+        SCLogDebug("left %d '%s' %d", (int)left, xforms, (int)strlen(xforms));
+
+        char xforms_print[out_size];
+        if ((size_t)left >= strlen(xforms)) {
+            snprintf(xforms_print, sizeof(xforms_print), " (%s)", xforms);
+        } else {
+            char xforms_short[out_size];
+            ShortenString(xforms, xforms_short, left, '~');
+            snprintf(xforms_print, sizeof(xforms_print), " (%s)", xforms_short);
+        }
+        strlcat(out, xforms_print, out_size);
+    }
+}
+
 /** \brief copy a mpm engine from parent_id, add in transforms */
 void DetectAppLayerMpmRegisterByParentId(DetectEngineCtx *de_ctx,
         const int id, const int parent_id,
@@ -200,35 +268,13 @@ void DetectAppLayerMpmRegisterByParentId(DetectEngineCtx *de_ctx,
             am->sgh_mpm_context = MpmFactoryRegisterMpmCtxProfile(
                     de_ctx, am->name, am->sm_list, am->app_v2.alproto);
             am->next = t->next;
+
+            BuildBasicPname(am->pname, sizeof(am->pname), am->name, (uint16_t)id);
             if (transforms) {
                 memcpy(&am->transforms, transforms, sizeof(*transforms));
-
-                /* create comma separated string of the names of the
-                 * transforms and then shorten it if necessary. Finally
-                 * use it to construct the 'profile' name for the engine */
-                char xforms[1024] = "";
-                for (int i = 0; i < transforms->cnt; i++) {
-                    char ttstr[64];
-                    (void)snprintf(ttstr,sizeof(ttstr), "%s,",
-                            sigmatch_table[transforms->transforms[i].transform].name);
-                    strlcat(xforms, ttstr, sizeof(xforms));
-                }
-                xforms[strlen(xforms)-1] = '\0';
-
-                size_t space = sizeof(am->pname) - strlen(am->name) - 3;
-                char toprint[space + 1];
-                memset(toprint, 0x00, space + 1);
-                if (space < strlen(xforms)) {
-                    ShortenString(xforms, toprint, space, '~');
-                } else {
-                    strlcpy(toprint, xforms,sizeof(toprint));
-                }
-                (void)snprintf(am->pname, sizeof(am->pname), "%s#%d (%s)",
-                        am->name, id, toprint);
-            } else {
-                (void)snprintf(am->pname, sizeof(am->pname), "%s#%d",
-                        am->name, id);
+                AppendTransformsToPname(am->pname, sizeof(am->pname), transforms);
             }
+            SCLogDebug("am->pname '%s' (%u)", am->pname, (uint32_t)strlen(am->pname));
             am->id = de_ctx->app_mpms_list_cnt++;
 
             DetectEngineRegisterFastPatternForId(de_ctx, am->sm_list, am->priority);
@@ -376,7 +422,6 @@ void DetectFrameMpmRegisterByParentId(DetectEngineCtx *de_ctx, const int id, con
             DetectBufferMpmRegistry *am = SCCalloc(1, sizeof(*am));
             BUG_ON(am == NULL);
             am->name = t->name;
-            snprintf(am->pname, sizeof(am->pname), "%s#%d", am->name, id);
             DEBUG_VALIDATE_BUG_ON(id < 0 || id > UINT16_MAX);
             am->sm_list = (uint16_t)id; // use new id
             am->sm_list_base = t->sm_list;
@@ -388,8 +433,11 @@ void DetectFrameMpmRegisterByParentId(DetectEngineCtx *de_ctx, const int id, con
             am->direction = t->direction;
             am->sgh_mpm_context = t->sgh_mpm_context;
             am->next = t->next;
+
+            BuildBasicPname(am->pname, sizeof(am->pname), am->name, (uint16_t)id);
             if (transforms) {
                 memcpy(&am->transforms, transforms, sizeof(*transforms));
+                AppendTransformsToPname(am->pname, sizeof(am->pname), transforms);
             }
             am->id = de_ctx->frame_mpms_list_cnt++;
 
@@ -606,7 +654,6 @@ void DetectPktMpmRegisterByParentId(DetectEngineCtx *de_ctx,
             DetectBufferMpmRegistry *am = SCCalloc(1, sizeof(*am));
             BUG_ON(am == NULL);
             am->name = t->name;
-            snprintf(am->pname, sizeof(am->pname), "%s#%d", am->name, id);
             DEBUG_VALIDATE_BUG_ON(id < 0 || id > INT16_MAX);
             am->sm_list = (uint16_t)id; // use new id
             am->sm_list_base = t->sm_list;
@@ -616,8 +663,11 @@ void DetectPktMpmRegisterByParentId(DetectEngineCtx *de_ctx,
             am->priority = t->priority;
             am->sgh_mpm_context = t->sgh_mpm_context;
             am->next = t->next;
+
+            BuildBasicPname(am->pname, sizeof(am->pname), am->name, (uint16_t)id);
             if (transforms) {
                 memcpy(&am->transforms, transforms, sizeof(*transforms));
+                AppendTransformsToPname(am->pname, sizeof(am->pname), transforms);
             }
             am->id = de_ctx->pkt_mpms_list_cnt++;
 
@@ -983,10 +1033,10 @@ static void PopulateMpmHelperAddPattern(MpmCtx *mpm_ctx, const DetectContentData
 
     if (cd->flags & DETECT_CONTENT_NOCASE) {
         if (chop) {
-            MpmAddPatternCI(mpm_ctx, cd->content + cd->fp_chop_offset, cd->fp_chop_len, pat_offset,
-                    pat_depth, cd->id, s->iid, flags | MPM_PATTERN_CTX_OWNS_ID);
+            SCMpmAddPatternCI(mpm_ctx, cd->content + cd->fp_chop_offset, cd->fp_chop_len,
+                    pat_offset, pat_depth, cd->id, s->iid, flags | MPM_PATTERN_CTX_OWNS_ID);
         } else {
-            MpmAddPatternCI(mpm_ctx, cd->content, cd->content_len, pat_offset, pat_depth, cd->id,
+            SCMpmAddPatternCI(mpm_ctx, cd->content, cd->content_len, pat_offset, pat_depth, cd->id,
                     s->iid, flags | MPM_PATTERN_CTX_OWNS_ID);
         }
     } else {

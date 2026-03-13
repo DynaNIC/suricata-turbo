@@ -18,9 +18,14 @@
 #ifndef SURICATA_RUST_H
 #define SURICATA_RUST_H
 
-// hack for include orders cf SCSha256
+// Forward declarations needed by rust-bindings.h
 typedef struct HttpRangeContainerBlock HttpRangeContainerBlock;
-#include "rust-context.h"
+
+typedef struct DetectEngineState_ DetectEngineState;
+
+// may be improved by smaller include
+#include "detect.h"
+
 #include "rust-bindings.h"
 
 #define JB_SET_STRING(jb, key, val) SCJbSetFormatted((jb), "\"" key "\":\"" val "\"")

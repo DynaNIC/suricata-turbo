@@ -864,8 +864,7 @@ int StreamTcpReassembleHandleSegmentHandleData(ThreadVars *tv, TcpReassemblyThre
     if (RB_EMPTY(&stream->seg_tree) &&
         stream->flags & STREAMTCP_STREAM_FLAG_APPPROTO_DETECTION_SKIPPED) {
 
-        AppLayerDecoderEventsSetEventRaw(&p->app_layer_events,
-                APPLAYER_PROTO_DETECTION_SKIPPED);
+        SCAppLayerDecoderEventsSetEventRaw(&p->app_layer_events, APPLAYER_PROTO_DETECTION_SKIPPED);
     }
 
     int r = StreamTcpReassembleInsertSegment(tv, ra_ctx, stream, seg, p, p->payload, payload_len);
@@ -1421,7 +1420,6 @@ int StreamTcpReassembleAppLayer(ThreadVars *tv, TcpReassemblyThreadCtx *ra_ctx, 
             SCLogDebug("sending empty eof message");
             /* send EOF to app layer */
             uint8_t stream_flags = StreamGetAppLayerFlags(ssn, stream, p);
-            DEBUG_VALIDATE_BUG_ON((stream_flags & STREAM_EOF) == 0);
             AppLayerHandleTCPData(
                     tv, ra_ctx, p, p->flow, ssn, &stream, NULL, 0, stream_flags, app_update_dir);
             AppLayerProfilingStore(ra_ctx->app_tctx, p);
@@ -2471,8 +2469,9 @@ static int StreamTcpReassembleTest33(void)
     FAIL_IF(StreamTcpReassembleHandleSegment(&tv, ra_ctx, &ssn, &ssn.client, p) == -1);
 
     StreamTcpUTClearSession(&ssn);
+    FLOW_DESTROY(&f);
+    PacketFree(p);
     StreamTcpUTDeinit(ra_ctx);
-    SCFree(p);
     PASS;
 }
 
@@ -2532,8 +2531,9 @@ static int StreamTcpReassembleTest34(void)
     FAIL_IF(StreamTcpReassembleHandleSegment(&tv, ra_ctx, &ssn, &ssn.client, p) == -1);
 
     StreamTcpUTClearSession(&ssn);
+    FLOW_DESTROY(&f);
     StreamTcpUTDeinit(ra_ctx);
-    SCFree(p);
+    PacketFree(p);
     PASS;
 }
 
@@ -3016,9 +3016,10 @@ static int StreamTcpReassembleTest39 (void)
     p->payload = NULL;
     FAIL_IF(StreamTcpPacket(&tv, p, &stt, &pq) == -1);
 
+    PacketFree(p);
     StreamTcpSessionClear(ssn);
+    FLOW_DESTROY(&f);
     StreamTcpUTDeinit(stt.ra_ctx);
-    SCFree(p);
     PASS;
 }
 
@@ -3159,10 +3160,10 @@ static int StreamTcpReassembleTest40 (void)
     FAIL_IF(f->alproto != ALPROTO_HTTP1);
 
     StreamTcpUTClearSession(&ssn);
+    PacketFree(p);
+    UTHFreeFlow(f);
     StreamTcpReassembleFreeThreadCtx(ra_ctx);
     StreamTcpFreeConfig(true);
-    SCFree(p);
-    UTHFreeFlow(f);
     PASS;
 }
 
@@ -3335,10 +3336,10 @@ static int StreamTcpReassembleTest47 (void)
     FAIL_IF(f->alproto != ALPROTO_HTTP1);
 
     StreamTcpUTClearSession(&ssn);
+    PacketFree(p);
+    UTHFreeFlow(f);
     StreamTcpReassembleFreeThreadCtx(ra_ctx);
     StreamTcpFreeConfig(true);
-    SCFree(p);
-    UTHFreeFlow(f);
     PASS;
 }
 

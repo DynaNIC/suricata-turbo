@@ -851,11 +851,12 @@ static int DetectPortParseDo(const DetectEngineCtx *de_ctx,
                     goto error;
                 }
                 if (negate == 1 || n_set == 1) {
-                    alloc_rule_var_port = SCMalloc(strlen(rule_var_port) + 3);
+                    /* add +1 to safisfy gcc 15 + -Wformat-truncation=2 */
+                    const size_t str_size = strlen(rule_var_port) + 3 + 1;
+                    alloc_rule_var_port = SCMalloc(str_size);
                     if (unlikely(alloc_rule_var_port == NULL))
                         goto error;
-                    snprintf(alloc_rule_var_port, strlen(rule_var_port) + 3,
-                             "[%s]", rule_var_port);
+                    snprintf(alloc_rule_var_port, str_size, "[%s]", rule_var_port);
                 } else {
                     alloc_rule_var_port = SCStrdup(rule_var_port);
                     if (unlikely(alloc_rule_var_port == NULL))
@@ -921,11 +922,12 @@ static int DetectPortParseDo(const DetectEngineCtx *de_ctx,
                     goto error;
                 }
                 if ((negate + n_set) % 2) {
-                    alloc_rule_var_port = SCMalloc(strlen(rule_var_port) + 3);
+                    /* add +1 to safisfy gcc 15 + -Wformat-truncation=2 */
+                    const size_t str_size = strlen(rule_var_port) + 3 + 1;
+                    alloc_rule_var_port = SCMalloc(str_size);
                     if (unlikely(alloc_rule_var_port == NULL))
                         goto error;
-                    snprintf(alloc_rule_var_port, strlen(rule_var_port) + 3,
-                            "[%s]", rule_var_port);
+                    snprintf(alloc_rule_var_port, str_size, "[%s]", rule_var_port);
                 } else {
                     alloc_rule_var_port = SCStrdup(rule_var_port);
                     if (unlikely(alloc_rule_var_port == NULL))
@@ -1434,51 +1436,6 @@ void DetectPortHashFree(DetectEngineCtx *de_ctx)
 #include "packet.h"
 
 /**
- * \brief Do a sorted insert, where the top of the list should be the biggest
- * port range.
- *
- * \todo XXX current sorting only works for overlapping ranges
- *
- * \param head Pointer to the DetectPort list head
- * \param dp Pointer to DetectPort to search in the DetectPort list
- * \retval 0 if dp is added correctly
- */
-static int PortTestDetectPortAdd(DetectPort **head, DetectPort *dp)
-{
-    DetectPort *cur, *prev_cur = NULL;
-
-    //SCLogDebug("DetectPortAdd: adding "); DetectPortPrint(ag); SCLogDebug("");
-
-    if (*head != NULL) {
-        for (cur = *head; cur != NULL; cur = cur->next) {
-            prev_cur = cur;
-            int r = DetectPortCmp(dp,cur);
-            if (r == PORT_EB) {
-                /* insert here */
-                dp->prev = cur->prev;
-                dp->next = cur;
-
-                cur->prev = dp;
-                if (*head == cur) {
-                    *head = dp;
-                } else {
-                    dp->prev->next = dp;
-                }
-                return 0;
-            }
-        }
-        dp->prev = prev_cur;
-        if (prev_cur != NULL)
-            prev_cur->next = dp;
-    } else {
-        *head = dp;
-    }
-
-    return 0;
-}
-
-
-/**
  * \test Check if a DetectPort is properly allocated
  */
 static int PortTestParse01 (void)
@@ -1712,68 +1669,6 @@ static int PortTestParse16 (void)
 /**
  * \test Test general functions
  */
-static int PortTestFunctions01(void)
-{
-    DetectPort *head = NULL;
-    DetectPort *dp1= NULL;
-    int result = 0;
-
-    /* Parse */
-    int r = DetectPortParse(NULL,&head,"![0:100,1000:65535]");
-    if (r != 0 || head->next != NULL)
-        goto end;
-
-    /* We should have only one DetectPort */
-    if (!(head->port == 101))
-        goto end;
-    if (!(head->port2 == 999))
-        goto end;
-    if (!(head->next == NULL))
-        goto end;
-
-    r = DetectPortParse(NULL, &dp1,"2000:3000");
-    if (r != 0 || dp1->next != NULL)
-        goto end;
-    if (!(dp1->port == 2000))
-        goto end;
-    if (!(dp1->port2 == 3000))
-        goto end;
-
-    /* Add */
-    r = PortTestDetectPortAdd(&head, dp1);
-    if (r != 0 || head->next == NULL)
-        goto end;
-    if (!(head->port == 101))
-        goto end;
-    if (!(head->port2 == 999))
-        goto end;
-    if (!(head->next->port == 2000))
-        goto end;
-    if (!(head->next->port2 == 3000))
-        goto end;
-
-    /* Match */
-    if (!DetectPortMatch(head, 150))
-        goto end;
-    if (DetectPortMatch(head->next, 1500))
-        goto end;
-    if ((DetectPortMatch(head, 3500)))
-        goto end;
-    if ((DetectPortMatch(head, 50)))
-        goto end;
-
-    result = 1;
-end:
-    if (dp1 != NULL)
-        DetectPortFree(NULL, dp1);
-    if (head != NULL)
-        DetectPortFree(NULL, head);
-    return result;
-}
-
-/**
- * \test Test general functions
- */
 static int PortTestFunctions02(void)
 {
     DetectPort *head = NULL;
@@ -1813,11 +1708,11 @@ static int PortTestFunctions02(void)
 
 end:
     if (dp1 != NULL)
-        DetectPortFree(NULL, dp1);
+        DetectPortCleanupList(NULL, dp1);
     if (dp2 != NULL)
-        DetectPortFree(NULL, dp2);
+        DetectPortCleanupList(NULL, dp2);
     if (head != NULL)
-        DetectPortFree(NULL, head);
+        DetectPortCleanupList(NULL, head);
     return result;
 }
 
@@ -1879,11 +1774,11 @@ static int PortTestFunctions03(void)
 
 end:
     if (dp1 != NULL)
-        DetectPortFree(NULL, dp1);
+        DetectPortCleanupList(NULL, dp1);
     if (dp2 != NULL)
-        DetectPortFree(NULL, dp2);
+        DetectPortCleanupList(NULL, dp2);
     if (dp3 != NULL)
-        DetectPortFree(NULL, dp3);
+        DetectPortCleanupList(NULL, dp3);
     return result;
 }
 
@@ -1892,18 +1787,16 @@ end:
  */
 static int PortTestFunctions04(void)
 {
-    DetectPort *dp1= NULL;
-    DetectPort *dp2= NULL;
+    DetectPort *dp1 = NULL;
+    DetectPort *dp2 = NULL;
     int result = 0;
 
     int r = DetectPortParse(NULL, &dp1, "200:300");
     if (r != 0)
         goto end;
 
-    dp2 = DetectPortInit();
-
     /* Cut Not */
-    DetectPortCutNot(dp1, &dp2);
+    r = DetectPortCutNot(dp1, &dp2);
     if (r != 0)
         goto end;
 
@@ -1919,9 +1812,9 @@ static int PortTestFunctions04(void)
     result = 1;
 end:
     if (dp1 != NULL)
-        DetectPortFree(NULL, dp1);
+        DetectPortCleanupList(NULL, dp1);
     if (dp2 != NULL)
-        DetectPortFree(NULL, dp2);
+        DetectPortCleanupList(NULL, dp2);
     return result;
 }
 
@@ -1969,7 +1862,7 @@ static int PortTestMatchReal(uint8_t *raw_eth_pkt, uint16_t pktsize, const char 
     FlowInitConfig(FLOW_QUIET);
     Packet *p = UTHBuildPacketFromEth(raw_eth_pkt, pktsize);
     result = UTHPacketMatchSig(p, sig);
-    PacketRecycle(p);
+    PacketFree(p);
     FlowShutdown();
     return result;
 }
@@ -2237,16 +2130,12 @@ static int PortTestMatchReal19(void)
 
 static int PortTestMatchDoubleNegation(void)
 {
-    int result = 0;
     DetectPort *head = NULL, *nhead = NULL;
-
-    if (DetectPortParseDo(NULL, &head, &nhead, "![!80]", 0, NULL, 0) == -1)
-        return result;
-
-    result = (head != NULL);
-    result = (nhead == NULL);
-
-    return result;
+    FAIL_IF(DetectPortParseDo(NULL, &head, &nhead, "![!80]", 0, NULL, 0) == -1);
+    FAIL_IF_NOT(head != NULL);
+    FAIL_IF_NOT(nhead == NULL);
+    DetectPortCleanupList(NULL, head);
+    PASS;
 }
 
 // Test that negation is successfully parsed with whitespace for port strings of
@@ -2270,6 +2159,7 @@ static int DetectPortParseDoTest(void)
     FAIL_IF(nhead->port2 != 45);
     DetectPortCleanupList(NULL, head);
     DetectPortCleanupList(NULL, nhead);
+    DetectEngineCtxFree(de_ctx);
     PASS;
 }
 
@@ -2284,6 +2174,7 @@ static int DetectPortParseDoTest2(void)
     FAIL_IF(r < 0);
     DetectPortCleanupList(NULL, head);
     DetectPortCleanupList(NULL, nhead);
+    DetectEngineCtxFree(de_ctx);
     PASS;
 }
 
@@ -2340,7 +2231,6 @@ void DetectPortTests(void)
     UtRegisterTest("PortTestParse14", PortTestParse14);
     UtRegisterTest("PortTestParse15", PortTestParse15);
     UtRegisterTest("PortTestParse16", PortTestParse16);
-    UtRegisterTest("PortTestFunctions01", PortTestFunctions01);
     UtRegisterTest("PortTestFunctions02", PortTestFunctions02);
     UtRegisterTest("PortTestFunctions03", PortTestFunctions03);
     UtRegisterTest("PortTestFunctions04", PortTestFunctions04);

@@ -19,23 +19,25 @@
 
 pub mod byte_extract;
 pub mod byte_math;
+pub mod datasets;
 pub mod entropy;
 pub mod error;
+pub mod float;
 pub mod flow;
+pub mod fragbits;
 pub mod iprep;
 pub mod parser;
 pub mod requires;
 pub mod stream_size;
+pub mod tcp;
+pub mod tojson;
 pub mod transforms;
 pub mod uint;
-pub mod float;
 pub mod uri;
-pub mod tojson;
 pub mod vlan;
-pub mod datasets;
 
-use std::os::raw::c_int;
 use std::ffi::CString;
+use std::os::raw::c_int;
 
 use suricata_sys::sys::{
     DetectEngineCtx, SCDetectHelperKeywordRegister, SCDetectHelperKeywordSetCleanCString,
@@ -46,7 +48,9 @@ use suricata_sys::sys::{
 /// derive StringEnum.
 pub trait EnumString<T> {
     /// Return the enum variant of the given numeric value.
-    fn from_u(v: T) -> Option<Self> where Self: Sized;
+    fn from_u(v: T) -> Option<Self>
+    where
+        Self: Sized;
 
     /// Convert the enum variant to the numeric value.
     fn into_u(self) -> T;
@@ -55,7 +59,9 @@ pub trait EnumString<T> {
     fn to_str(&self) -> &'static str;
 
     /// Get an enum variant from parsing a string.
-    fn from_str(s: &str) -> Option<Self> where Self: Sized;
+    fn from_str(s: &str) -> Option<Self>
+    where
+        Self: Sized;
 }
 
 /// Rust app-layer light version of SigTableElmt for simple sticky buffer
@@ -74,7 +80,7 @@ pub struct SigTableElmtStickyBuffer {
     ) -> c_int,
 }
 
-pub fn helper_keyword_register_sticky_buffer(kw: &SigTableElmtStickyBuffer) -> u16 {
+fn helper_keyword_register_buffer_flags(kw: &SigTableElmtStickyBuffer, flags: u32) -> u16 {
     let name = CString::new(kw.name.as_bytes()).unwrap().into_raw();
     let desc = CString::new(kw.desc.as_bytes()).unwrap().into_raw();
     let url = CString::new(kw.url.as_bytes()).unwrap().into_raw();
@@ -83,7 +89,7 @@ pub fn helper_keyword_register_sticky_buffer(kw: &SigTableElmtStickyBuffer) -> u
         desc,
         url,
         Setup: Some(kw.setup),
-        flags: SIGMATCH_NOOPT | SIGMATCH_INFO_STICKY_BUFFER,
+        flags,
         AppLayerTxMatch: None,
         Free: None,
     };
@@ -92,6 +98,17 @@ pub fn helper_keyword_register_sticky_buffer(kw: &SigTableElmtStickyBuffer) -> u
         SCDetectHelperKeywordSetCleanCString(r);
         return r;
     }
+}
+
+pub fn helper_keyword_register_multi_buffer(kw: &SigTableElmtStickyBuffer) -> u16 {
+    return helper_keyword_register_buffer_flags(
+        kw,
+        SIGMATCH_NOOPT | SIGMATCH_INFO_STICKY_BUFFER | SIGMATCH_INFO_MULTI_BUFFER,
+    );
+}
+
+pub fn helper_keyword_register_sticky_buffer(kw: &SigTableElmtStickyBuffer) -> u16 {
+    return helper_keyword_register_buffer_flags(kw, SIGMATCH_NOOPT | SIGMATCH_INFO_STICKY_BUFFER);
 }
 
 #[repr(C)]
@@ -114,10 +131,18 @@ pub unsafe extern "C" fn SCDetectSigMatchNamesFree(kw: &mut SCSigTableNamesElmt)
 }
 
 // TODO bindgen these
-pub const SIGMATCH_NOOPT: u16 = 1; // BIT_U16(0) in detect.h
-pub(crate) const SIGMATCH_OPTIONAL_OPT: u16 = 0x10; // BIT_U16(4) in detect.h
-pub(crate) const SIGMATCH_QUOTES_MANDATORY: u16 = 0x40; // BIT_U16(6) in detect.h
-pub const SIGMATCH_INFO_STICKY_BUFFER: u16 = 0x200; // BIT_U16(9)
+pub const SIGMATCH_NOOPT: u32 = 1; // BIT_U16(0) in detect.h
+pub(crate) const SIGMATCH_OPTIONAL_OPT: u32 = 0x10; // BIT_U16(4) in detect.h
+pub(crate) const SIGMATCH_QUOTES_MANDATORY: u32 = 0x40; // BIT_U16(6) in detect.h
+pub const SIGMATCH_INFO_STICKY_BUFFER: u32 = 0x200; // BIT_U16(9)
+pub const SIGMATCH_INFO_MULTI_BUFFER: u32 = 0x4000; // BIT_U16(14)
+pub const SIGMATCH_INFO_UINT8: u32 = 0x8000; // BIT_U32(15)
+pub const SIGMATCH_INFO_UINT16: u32 = 0x10000; // BIT_U32(16)
+pub const SIGMATCH_INFO_UINT32: u32 = 0x20000; // BIT_U32(17)
+pub const SIGMATCH_INFO_UINT64: u32 = 0x40000; // BIT_U32(18)
+pub const SIGMATCH_INFO_MULTI_UINT: u32 = 0x80000; // BIT_U32(19)
+pub const SIGMATCH_INFO_ENUM_UINT: u32 = 0x100000; // BIT_U32(20)
+pub const SIGMATCH_INFO_BITFLAGS_UINT: u32 = 0x200000; // BIT_U32(21)
 
 #[repr(u8)]
 #[derive(Copy, Clone, Debug, PartialEq, Eq)]
@@ -181,6 +206,56 @@ mod test {
         assert_eq!(TestEnum::BestValueEver.to_str(), "best_value_ever");
         assert_eq!(TestEnum::from_str("zero"), Some(TestEnum::Zero));
         assert_eq!(TestEnum::from_str("nope"), None);
-        assert_eq!(TestEnum::from_str("best_value_ever"), Some(TestEnum::BestValueEver));
+        assert_eq!(
+            TestEnum::from_str("best_value_ever"),
+            Some(TestEnum::BestValueEver)
+        );
+    }
+
+    #[derive(Clone, Debug, PartialEq, EnumStringU8)]
+    #[repr(u8)]
+    #[suricata(enum_string_style = "LOG_UPPERCASE")]
+    pub enum TestEnumLogUppercase {
+        Zero = 0,
+        BestValueEver = 42,
+    }
+
+    #[test]
+    fn test_enum_string_log_uppercase() {
+        assert_eq!(TestEnumLogUppercase::Zero.to_str(), "ZERO");
+        assert_eq!(
+            TestEnumLogUppercase::BestValueEver.to_str(),
+            "BESTVALUEEVER"
+        );
+        assert_eq!(
+            TestEnumLogUppercase::from_str("zero"),
+            Some(TestEnumLogUppercase::Zero)
+        );
+        assert_eq!(
+            TestEnumLogUppercase::from_str("BEST_VALUE_EVER"),
+            Some(TestEnumLogUppercase::BestValueEver)
+        );
+    }
+
+    #[derive(Clone, Debug, PartialEq, EnumStringU8)]
+    #[repr(u8)]
+    #[suricata(enum_string_style = "UPPERCASE")]
+    pub enum TestEnumUppercase {
+        Zero = 0,
+        BestValueEver = 42,
+    }
+
+    #[test]
+    fn test_enum_string_uppercase() {
+        assert_eq!(TestEnumUppercase::Zero.to_str(), "ZERO");
+        assert_eq!(TestEnumUppercase::BestValueEver.to_str(), "BESTVALUEEVER");
+        assert_eq!(
+            TestEnumUppercase::from_str("zero"),
+            Some(TestEnumUppercase::Zero)
+        );
+        assert_eq!(
+            TestEnumUppercase::from_str("BESTVALUEEVER"),
+            Some(TestEnumUppercase::BestValueEver)
+        );
     }
 }
