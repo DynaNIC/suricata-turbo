@@ -28,7 +28,7 @@
 
 #ifdef HAVE_DPDK
 
-int mlx5DeviceSetRSS(int port_id, uint16_t nb_rx_queues, char *port_name);
+int mlx5DeviceSetRSS(int port_id, uint16_t nb_rx_queues, char *port_name, uint32_t group);
 
 #endif /* HAVE_DPDK */
 
